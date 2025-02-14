@@ -1,0 +1,21 @@
+清空之前的提交记录，以便将仓库重置为一个干净状态
+
+1.进入一个干净的状态，即创建一个没有提交记录的新分支
+git checkout --orphan clean_branch
+--orphan 该选项用于创建一个没有任何提交记录的新分支，新分支的历史记录与当前分支无关，相当于一个全新的起点
+clean_branch 新分支的名称，可随意更改
+
+2.添加并提交代码，注意此时处于新clean_branch分支
+git add .		将当前目录下的所有文件添加到暂存区
+git commit -m "Initial commit"	提交到本地仓库
+
+3.删除旧的master分支
+git branch -D master	-D强制删除当前的master分支。该操作会永久删除该分支及其所有提交历史，不可恢复
+
+4.将当前分支clean_branch重命名为master
+git branch -m master	-m 用于重命名，是为了保持仓库的主分支名称一致
+
+5.强制推送新分支到远程仓库
+git push -f origin master
+-f 强制推送，将本地的master分支覆盖远程仓库的master分支，该操作会替换远程仓库中的master分支历史记录，不可恢复
+-u 首次推送时设置origin作为默认远程仓库。
