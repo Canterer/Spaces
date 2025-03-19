@@ -1,0 +1,1924 @@
+UE的命名约定：
+模板类以T作为前缀,如TArray、TMap、TSet
+UObject派生类都以U前缀
+AActor派生类都以A前缀
+SWidget派生类都以S前缀
+抽象接口以I前缀
+枚举以E开头
+bool变量以b前缀,如bPendingDestruction
+其他的大部分以F开头,如FString,FName
+typedef的以原型名前缀为准,如typedef TArray FArrayOfMyTypes
+在编辑器和C#里,类型名都是去掉前缀使用的
+UHT在工作的时候需要你提供正确的前缀
+
+AActor、Actor？区别
+
+UE实现了自己的一套编译系统,最重要的两个组件：UBT、UTH
+
+UnrealBuildTool(UBT, C#):UE自定义工具，来编译UE的各个模块并处理依赖。编写的Target.cs、Build.cs都是为该工具服务的
+
+UnrealHeaderTool(UHT,C++)：UE的C++代码解析生成工具。代码里的宏UCLASS等和#include "xxx.generated.h"都是为UHT提供信息来生成相应的C++反射代码。
+
+UBT会先调用UHT负责解析一遍C++代码，生成相应其他代码。然后调用平台特定的编译工具(VisualStudio,LLVM)来编译各个模块。最后启动Editor或Game
+
+LLVM(Low Level Virtual Machine)底层虚拟机。LLVM核心库提供提供了与编译器相关的支持，可以作为多种语言编译器的后台使用。提供一套中立的中间代码和编译基础设施。
+
+FTransform
+旋转角度、欧拉角、四元数
+FRotator、FQuat
+
+计算顺序：ZXY
+万向锁：当Y轴角度为90度时, Z、X数值控制的是同一个
+原因是计算顺序。先计算Z轴，当计算Y轴的时候。z轴数据被当成X轴了。
+当Y轴为90的时候，调整Z轴数值会绕x轴旋转。
+欧拉角每次都是从0开始计算的，且计算顺序为ZYX。
+不适合增量计算。
+
+旋转分内旋、外旋。内旋按自身坐标系的轴、外旋按初始固定坐标系(计算顺序与内旋像反即XYZ)
+增量计算的时候，不能用欧拉角。
+
+四元数：(X,Y,Z,W)
+	轴角：(n,angle)绕轴N旋转angle角度
+	(x,y,z,angle) 轴N由x,y,z表示
+	四元数与轴角关系
+	(X,Y,Z,W) = (sin(angle/2)x,sin(angle/2)y,sin(angle/2)z,cos(angle/2))
+	由四元数得出轴角。
+
+坐标表示：都是从0开始的。
+实际中：旋转一个角度后，从当前的坐标再开始旋转。
+
+轴角：可以表达连续旋转
+朝向A、轴向B 两个向量组成一个平面,垂直于该平面的即为轴。想象一个单位球面，每个朝向都是球面上一个点。朝向即从原点到该点的向量。
+
+
+
+DataRegister
+GameplayFeature 即插即用	
+热更新 PAK DLC
+
+打包模式目前有Release、Patch、DLC三种
+
+将资源打成一个个PAK包
+
+补丁 Patch 与 DLC
+
+Patch与DLC都是以某个Release版本为基础进行打包的
+
+DLC是以Plugin的形式进行实现的
+DLC Downloadable Content 可下载资源包
+
+AInfo派生类：
+	AWorldSetting、AGameMode、AGameSession、APlayerState、AGameState
+AHUD、APlayerCameraManager
+
+UActorComponent基于UObject的子类
+USceneComponent : public UActorComponent
+template<class T>
+static FORCEINLINE FVector GetActorLocation(const T* RootComponent)
+{ return (RootComponent != nullptr) ? RootComponent->GetComponentLocation() : FVector(0.f,0.f,0.f);}
+
+
+USTRUCT()
+struct HELLO_API FMyStruct
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(BlueprintReadWrite)
+	float score;
+}
+
+UCLASS()
+class HELLO_API UMyClass : public UObject
+{
+	GENERATED_BODY()
+public:
+	UFUNCTION(BlueprintCallable)
+	void CallableFuncTest();
+
+	UFUNCTION(BlueprintCallable)
+	void OutCallableFuncTest(float& outParam);
+
+	UFUNCTION(BlueprintCallable)
+	void RefCallableFuncTest(UPARAM(ref) float& refParam)
+
+	UFUNCTION(BlueprintNativeEvent)
+	void NativeFuncTest()
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void ImplementableFuncTest()
+}
+
+UINTERFACE()
+class UMyInterface : public UInterface
+{
+	GENERATED_UINTERFACE_BODY()
+}
+
+class IMyInterface
+{
+	GENERATED_IINTERFACE_BODY()
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void BPFunc() const;
+
+	virtual void SelfFunc() const {}
+}
+
+注意USTRUCT()、UCLASS() 都需要添加 HELLO_API 用于导出函数给其他模块使用
+UCLASS()自定义类需要继承 UObject
+
+
+GENERATED_BODY()
+	NO_API UMyClass(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());//Standard_constructors 仅声明
+GENERATED_UCLASS_BODY()比GENERATED_BODY()
+	NO_API UMyClass(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get()):Super(ObjectInitializer){};
+	//Enhanced_constructors 包含基类  定义空函数体 
+
+#define DEFINE_DEFAULT_OBJECT_INITIALIZER_CONSTRUCTOR_CALL(TClass)
+	static void __DefaultConstructor(const FObjectInitializer& X) { new((EInternal*)X.GetObj())TClass(X); }
+使用placement new 在 X.GetObj()返回的内存地址 调用TClass构造函数 实参为X
+
+类的构造函数并不能用函数指针指向。用一个static函数包装成一个平凡的函数指针。所有类的构造函数签名一致，在UClass里用一个函数指针保存起来
+class UClass : public UStruct
+{
+	typedef void (*ClassConstructorType)(const FObjectInitializer&);
+	ClassConstructorType ClassConstructor;
+}
+
+friend HELLO_API class UClass* Z_Construct_UClass_UMyClass();
+一个构造该类UClass对象的复制函数
+
+DECLARE_CLASS(TClass, TSuperClass, TStaticFlags, TStaticCastFlags, TPackage, TRequiredAPI)
+//DECLARE_CLASS(UMyClass,UObject,COMPILED_IN_FLAGS(0),0,TEXT("/Script/Hello"),NO_API)
+TPackage:类所处于的包名,所有的对象都必须在一个包中,而每一个包都具有一个名字,可以通过该名字来查找。
+"/Script/Hello",指定是Script下的Hello包
+Package的概念涉及到后续Object的组织方式,目前可以简单理解为一个大的Object包含了其他子Object
+
+TRequiredAPI static UClass* GetPrivateStaticClass(const TCHAR* Package);
+
+inline void* operator new(const size_t InSize, EInternal* InMem)
+{ return (void*)InMem; }
+inline void* operator new(const size_t InSize, UObject* InOuter=(UObject*)GetTransientPackage(),FName InName=NAME_None, EObjectFlags InSetFlags=RF_NoFlags)
+{ return StaticAllocateObject(StaticClass(), InOuter, InName, InSetFlags); }
+inline void* operator new(const size_t InSize, EInternal InInternalOnly UObject* InOuter=(UObject*)GetTransientPackage(),FName InName=NAME_None, EObjectFlags InSetFlags=RF_NoFlags)
+{ return StaticAllocateObject(StaticClass(), InOuter, InName, InSetFlags); } 
+重载三个new运算符 带EInternal的是 枚举New所调用的
+
+
+HELLO_API class UClass* Z_Construct_UClass_UMyClass_NoRegister()
+{ return UMyClass::StaticClass(); }
+HELLO_API clas UClass* Z_Construct_UClass_UMyClass()//构造并注册
+{
+	static UClass* OuterClass = NULL;
+	if( !OuterClass )
+	{
+		Z_Construct_UClass_UObject();//确保基类UObject本身的UClass*对象已经注册生成
+		Z_Construct_UPackage__Script_Hello();//确保当前Hello项目的UPackage已经创建,因为后续在生成UMyClass的UClass*对象需要保存在这个UPackage中
+		OuterClass = UMyClass::StaticClass();//访问获取UClass*对象
+		if( !(OuterClass->ClassFlags & CLASS_Constructed) )//防止重复注册
+		{
+			UObjectForceRegistration(OuterClass);
+			OuterClass->ClassFlags != Ox20100080;//增加CLASS_Constructed|CLASS_RequiredAPI标记
+			OuterClass->StaticLink();//"静态"链接
+		}
+	}
+	check(OuterClass->GetClass());
+	return OuterClass;
+}
+
+UPackage* Z_Construct_UPackage__Script_Hello()
+{
+	static UPackage* ReturnPackage = NULL;
+	if( !ReturnPackage )
+	{
+		ReturnPackage = CastChecked<UPackage>(
+			StaticFindObjectFast(UPackage::StaticClass(), NULL, FName(TEXT("/Script/Hello")), false, false)
+		);
+		//这里只是查找,真正的CreatePackage是在UObjectBase::DeferredRegister里调用
+		ReturnPackage->SetPackageFlags(PKG_CompiledIn | Ox00000000);//设定标记和Guid
+		FGuid Guid;
+		Guid.A = 0x79A097CD;
+		Guid.B = 0xB58D8B48;
+		Guid.C = 0x00000000;
+		Guid.D = 0x00000000;
+		ReturnPackage->SetGuid(Guid);
+	}
+	return ReturnPackage;
+}
+
+
+static FCompiledInDefer Z_CompileInDefer_UClass_UMyClass(Z_Construct_Class_UMyClass, &UMyClass::StaticClass, TEXT("UMyClass"), false, nullptr, nullptr, nullptr);//延迟注册,注入信息,在启动的时候调用
+
+#define IMPLEMENT_CLASS(TClass, TClassCrc)//TClassCrc为899540749
+	static TClassCompiledInDefer<TClass> AutoInitialize##TClass(TEXT(#TClass), sizeof(TClass), TClassCrc); \   //延迟注册
+
+	UClass* TClass::GetPrivateStaticClass(const TCHAR* Package)
+	{
+		static UClass* PrivateStaticClass = NULL;
+		if(!PrivateStaticClass)
+		{
+			GetPrivateStaticClassBody(
+				Package,
+				(TCHAR*)TEXT(#TClass)+1+((StaticClassFlags & CLASS_Deprecated) ? 11 : 0),
+				//类名 +1去掉U、A、F前缀 +11去掉_Deprecated前缀
+				PrivateStaticClass,//输出引用
+				StaticRegisterNatives##TClass,
+				sizeof(TClass),
+				TClass::StaticClassFlags,
+				TClass::StaticClassCastFlags(),
+				TClass::StaticConfigName(),
+				(UClass::ClassConstructorType)InternalConstructor<TClass>,
+				(UClass::ClassVTableHelperCtorCallerType)InternalVTableHelperCtorCaller<TClass>,
+				&TClass::AddReferencedObjects,
+				&TClass::Super::StaticClass,
+				&TClass::WithinClass::StaticClass
+			);
+		}
+		return PrivateStaticClass;
+	}
+
+
+UEnum* Z_Construct_UEnum_Hello_EMyEnum()
+{
+	UPackage* Outer=Z_Construct_UPackage__Script_Hello();
+	extern uint32 Get_Z_Construct_UEnum_Hello_EMyEnum_CRC();
+	static UEnum* ReturnEnum = FindExistingEnumIfHotReloadOrDynamic(Outer, TEXT("MyEnum"), ...)
+	if( !ReturnEnum )
+	{
+		ReturnEnum = new(EC_InternalUseOnlyConstructor, Outer, TEXT("EMyEnum"), RF_Public|RF_Transient|RF_MarkAsNative) UEnum(FObjectInitializer());//直接创建该UEnum对象
+		TArray<TPair<FName, uint8>> EnumNames;//设置枚举里的名字和值
+		EnumNames.Add(TPariInitializer<FName,uint8>(FName(TEXT("EMyEnum::My_Dance")),0))
+		EnumNames.Add(TPariInitializer<FName,uint8>(FName(TEXT("EMyEnum::My_Song")),1))
+		EnumNames.Add(TPariInitializer<FName,uint8>(FName(TEXT("EMyEnum::My_Max")),2));//添加默认的MAX字段  C++代码里未定义该字段
+		ReturnEnum->SetEnums(EnumNames, UEnum::ECppForm::EnumClass);
+		ReturnEnum->CppType=TEXT("EMyEnum");
+	}
+	return ReturnEnum;
+}
+UScriptStruct* Z_Construct_UScriptStruct_FMyStruct()
+{
+	UPackage* Outer = Z_Construct_UPackage__Script_Hello();
+	extern uint32 Get_Z_Construct_UScriptStruct_FMyStruct_CRC();
+	static UScriptStruct* ReturnStruct = FindExistStructIfHotReloadOrDynamic(Outer, TEXT("FMyStruct"), sizeof(FMyStruct), ...);
+	if(!ReturnStruct)
+	{
+		ReturnStruct = new(EC_InternalUseOnlyConstructor, Outer, TEXT("FMyStruct"}), RF_Public|RF_Transient|RF_MarkAsNative) UScriptStruct(
+			FObjectInitializer(), NULL,
+			new UScriptStruct::TCppStructOps<FMyStruct>, EStructFlags(0x00000201)
+		);
+
+		UProperty* NewProp_Score = new(EC_InternalUserOnlyConstructor, ReturnStruct, TEXT("Score"), RF_Public|RF_Transient|RF_MarkAsNative) UFloatProperty(
+			CPP_PROPERTY_BASE(Score, FMyStruct),
+			0x001000000000004
+		);//直接关联相应的Property信息
+		ReturnStruct->StaticLink();//链接
+	}
+	return ReturnStruct;
+}
+//TCppStructOps<T> 内含FMyStruct的Size、Alignment
+
+FStruct是一个纯数据的POD容器、UInterface是一个只能带方法的纯接口
+
+INCLASS_IINTERFACE
+	typedef UMyInterface UClassType;
+	static void Execute_BPFunc(const UObject* O);
+	virtual UObject* _getUObject() const = 0;
+
+
+注意接口的定义需要用到两个类
+UINTERFACE()
+class UMyInterface : public UInterface
+{
+	GENERATED_UINTERFACE_BODY()
+}
+class IMyInterface
+{
+	GENERATED_IINTERFACE_BODY()
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void BPFunc() const;
+}
+展开后
+clas IMyInterface
+{
+protected:
+	virtual ~IMyInterface(){}//禁止用指针接口释放对象
+public:
+	typdef UMyInterface UClassType;//设定关联类
+	static void Execute_BPFunc(const UObject* O);//蓝图调用的辅助函数
+}
+IMyInterface 与 UMyInterface
+UMyInterface是作为一个接口类型的载体,用以区分和查找不同的接口
+
+void IMyInterface::BPFunc() const
+{ check(0 && "ssss")}//让编译通过 并添加错误检测
+FName HELLO_BPFunc = FName(TEXT("BPFunc"));
+IMPLEMENT_CLASS(UMyInterface, 4286532323)
+void IMyInterface::Execute_BPFunc(const UObject* O)//蓝图调用方法的实现
+{
+	check( O != NULL );
+	check( O->GetClass()->ImplementsInterface(UMyInterface::StaticClass()) ) 
+	UFunction* const Func = O->FindFunction(HELLO_BPFunc);
+	if(Func)
+		const_cast<UObject*>(O)->ProcessEvent(Func, NULL);//在该对象上调用该方法
+}
+
+UFunction* Z_Construct_UFunction_UMyInterface_BPFunc()
+{
+	UObject* Outer = Z_Construct_UClass_UMyInterface();
+	static UFunction* ReturnFunction = NULL;
+	if( !ReturnFunction )
+	{
+		ReturnFunction = new (EC_InternalUseOnlyConstructor, Outer, TEXT("BPFunc"), RF_Public|RF_Transient|RF_MarkAsNative) UFunction(FObjectInitializer(), NULL, 0x48020800, 65535)
+
+		ReturnFunction->Bind();//绑定到函数指针
+		ReturnFunction->StaticLink();
+	}
+	return ReturnFunction
+}
+
+UClass* Z_Construct_UClass_UMyInterface()
+{
+	static UClass* OuterClass = NULL;
+	if ( !OuterClass )
+	{
+		UInterface::StaticClass();
+		Z_Construct_UPackage__Script_Hello();
+		OuterClass = UMyInterface::StaticClass();
+		if( !(OuterClass->ClassFlags & CLASS_Constructed ))
+		{
+			UObjectForceRegistration(OuterClass)
+			OuterClass->ClassFlags |= 0x200004081;//添加CLASS_Constructed
+			OuterClass->LinkChild(Z_Construct_UFunction_UMyInterface_BPFunc());//添加子字段
+			OuterClass->AddFunctionToFunctionMapWithOverriddenName(Z_Construct_UFunction_UMyInterface_BPFunc(), "BPFunc");//添加函数名字映射
+			OuterClass->StaticLink()
+		}
+		return OuterClass
+	}
+}
+
+
+UCLASS(BlueprintType)
+class HELLO_API UMyClass : public UObject{
+	GENERATED_BODY()
+public:
+	UPROPERTY(BlueprintReadWrite)
+	float Score;
+public:
+	UFUNCTION(BlueprintCallable)
+	void CallableFunc();//C++实现、蓝图调用
+	UFUNCTION(BlueprintNativeEvent)
+	void NativeFunc();//C++实现默认版本、蓝图可重载实现
+	UFUNCTION(BlueprintImplementableEvent)
+	void ImplementableFunc();//C++不实现，蓝图实现
+}
+
+DECLARE_FUNCTION(execNativeFunc)//声明供蓝图调用的函数
+{
+	P_FINISH;
+	P_NATIVE_BEGIN;
+	this->NativeFunc_Implementation(),
+	P_NATIVE_END
+}
+DECLARE_FUNCTION(execCallableFunc)
+{
+	... this->CallableFunc(); ...
+}
+函数需要暴露到蓝图里，为此生成exec前缀的函数供 蓝图虚拟机调用
+
+void UMyClass::ImplementableFunc()//C++的实现
+{
+	ProcessEvent(FindFunctionChecked("ImplementableFunc", NULL)
+}
+void UMyClass::NativeFunc()
+{
+	ProcessEvent(FindFunctionChecked("NativeFunc"), NULL)
+}
+void UMyClass::StaticRegisterNativeUMyClass()//注册函数名字和函数指针映射
+{
+	FNativeFunctionRegistrar::RegisterFunction(UMyClass::StaticClass(),"CallableFunc", (Native)&UMyClass::execCallableFunc))
+	FNativeFunctionRegistrar::RegisterFunction(UMyClass::StaticClass(),"NativeFunc", (Native)&UMyClass::execNativeFunc))
+}
+UFunction* Z_COnstruct_UFunction_UMyClass_CallableFunc()
+UFunction* Z_COnstruct_UFunction_UMyClass_ImplementableFunc()
+UFunction* Z_COnstruct_UFunction_UMyClass_NativeFunc()
+
+UClass* Z_Construct_UClass_UMyClass()
+{
+	static UClass* OuterClass=NULL;
+	if( !OuterClasss )
+	{
+		Z_Construct_UClass_UObject();
+		Z_Construct_UPackage__Script_Hello();
+		OuterClass = UMyClass::StaticClass();
+		if( !(OuterClass->ClassFlags & CLASS_Constructed ))
+		{
+			UObjectForceRegistration(OuterClass);
+			//添加子字段
+			OuterClass->LinkChild(Z_Construct_UFunction_UMyClass_CallableFunc())
+			OuterClass->LinkChild(Z_Construct_UFunction_UMyClass_ImplementableFunc())
+			OuterClass->LinkChild(Z_Construct_UFunction_UMyClass_NativeFunc())
+
+			UProperty* NewProp_Score = new (EC_InternalUseOnlyConstructor, OuterClass, TEXT("Score"), RF_...)
+
+			OuterClass->AddFunctionToFunctionMapWithOverriddenName(Z_Construct_UFunction_UMyClass_CallableFunc(), "CallableFunc");//添加函数名字映射
+			OuterClass->AddFunctionToFunctionMapWithOverriddenName(Z_Construct_UFunction_UMyClass_ImplementableFunc(), "ImplementableFunc");//添加函数名字映射
+			OuterClass->AddFunctionToFunctionMapWithOverriddenName(Z_Construct_UFunction_UMyClass_NativeFunc(), "NativeFunc");//添加函数名字映射	
+
+			OuterClass->StaticLink()
+		}
+	}
+	return OuterClass;
+}
+
+
+
+
+UField  UProperty 区别？ 两者好像都是链表
+这两个都是继承UObject  应该是为了网络同步
+FField FProperty 单纯的类
+
+
+FHitResult
+ETeleportType
+
+
+
+
+
+
+
+初始化流程：
+Init、Initialize
+
+静态对象初始化
+
+FObjectInitializer::Get()
+
+
+TWeakObjectPtr<T>
+TObjectPtr<USceneComponent> AttachParent;
+TArray<TObjectPtr<USceneComponent>> AttachChildren;
+TEnumAsByte<enum EDetailMode> DetailMode;
+
+
+//UGameInstanceSubSystem框架
+UGameInstanceSubSystem : public USubSystem
+{
+	UGameInstanceSubsystem();
+	UGameInstance* GetGameInstance() const;
+}
+USubSystem : public UObject
+{
+	FSubsystemCollectionBase* InternalOwningSubSystem;
+}
+
+
+	
+GameInstance:Init()
+	SubsystemCollection.Initialize(this);//成员变量
+	//FObjectSubsystemCollection<UGameInstanceSubsystem> SubsystemCollection
+
+FSubsystemCollectionBase内含一个UClass* BaseType
+FSubsystemCollection<TBaseType>::FSubsystemCollection()
+		: FSubSystemCollectionBase(TBaseType::StaticClass())
+FObjectSubsystemCollection<TBaseType>具有类似构造函数
+FSubsystemCollectionBase::Initialize
+	通过GetDerivedClasses(BaseType)来收集其所有派生类,并实例化	
+
+
+GetDerivedClasses()
+
+DECLARE_CLASS
+	inline static UClass* StaticCLass()
+	{ return GetPrivateStaticClass(); }
+
+IMPLEMENT_CLASS(TClass, TClassCrc)
+	IMPLEMENT_CLASS_NO_AUTO_REGISTRATION(TClass)
+		UClass::GetPrivateStaticClassBody()来实例单例
+				UObjectBase:RegisterDependencies()
+				UObjectBase:Register()
+
+UClass : public UStruct
+UStruct : public UFiled, private FStructBaseChain
+UFiled : public UObject
+UObject : public UObjectBaseUtility
+UObjectBaseUtility : public UObjectBase
+void UObjectBase::DeferredRegister(UClass *UClassStaticClass, const TCHAR* PackageName,const TCHAR* Name)
+{
+	Add to the global object table.
+	AddObject(FName(InName), EInternalObjectFlags::None);
+}
+UObjectBase::AddObject(...)
+	HashObject(this)
+UObjectHash::HashObject(UObjectBase* Object)
+	AddToClassMap(ThreadHash, Object);
+UObjectHash::GetDerivedClass(....)
+	ThreadHash.ClassToChildListMap.Find(ClassToLookFor)
+
+
+
+输入事件处理流程图
+	HardwareInput from Player
+		->PlayerInputMapping
+		->InputComponent Checks
+		 -> Input-Enabled Actor
+		 -> PlayerController
+		 -> Level Blueprint
+		 -> Pawn
+		 -> GameLogic
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Actor命名 与 蓝图命名区别
+蓝图类 路径名  uasset资源说明
+蓝图的 父类 C++父类 区别
+
+
+StaticClass、UObjectBase::GetClass、UClass::GetDefaultObject(UObject* ClassDefaultObject)
+
+StaticClass返回一个类型的信息
+同样C++类型不同蓝图类型 返回的UClass不同。
+
+UClass::IsChildOf
+	UStruct::IsChildOf
+	{
+		for( tempStruct=this;tempStruct;tempStruct=tempStruct->GetSuperStruct())
+	}
+
+AMyActor的两个蓝图类修改继承AMyActor的蓝图可编辑变量，分别设定默认值为10 20 
+GetClass()->GetDefaultObject<AMyActor>()->testIntValue 返回不同的值10 20
+AMyActor::StaticClass()->GetDefaultObject<AMyActor>()->testIntValue 返回C++中设定的默认值
+
+
+UBlueprint的几个UClass成员：
+NativeClass、GeneratedClass、BlueprintClass、ParentClass
+
+UMyUserWidget : public UUserWidget
+UMG_Parent指定ParentClass为 UMyUserWidget
+UMG_Child指定ParentClass为 UMG_Parent
+ParentClass是蓝图要编辑的对象的父类。对应编辑器里的ParentClass面板参数
+
+UMG_Child->ParentClass->GetFName() 返回 UMG_Parent_C  注意这里的_C
+
+UBlueprintCore : public UObject
+	TSubClassOf<UObject> SkeletonGeneratedClass;
+	TSubClassOf<UObject> GeneratedClass;
+	FGuid BlueprintGuid; 
+UBlueprint : public UBlueprintCore
+			,public IBlueprintPropertyGuidProvider
+	TSubClassOf<UObject> ParentClass;
+	TObjectPtr<USimpleConstructionScript> SimpleConstructionScript;
+	TArray<TObjectPtr<UActorComponent>> ComponentTemplates;
+	TObjectPtr<UInheritableComponentHandler> InheritableComponentHandler;
+
+
+UAnimBlueprint ： public UBlueprint
+				, public IInterface_PreviewMeshProvider
+UUserWidgetBlueprint : public UBlueprint //仅重载一个虚函数
+UBaseWidgetBlueprint : public UUserWidgetBlueprint
+UWidgetBlueprint : public UBaseWidgetBlueprint
+
+WidgetBlueprint是UMG蓝图类
+蓝图的本质是GeneratedClass类的编辑器。
+蓝图和GeneratedClass就好像修改器和存档的关系
+_C后缀就是GeneratedClass类
+ParentClass是蓝图要编辑的类(GeneratedClass)的父类
+NativeClass即C++类生成的UClass
+GetParentNativeClass(BpObje->GeneratedClass)
+
+
+UClass* UWidgetBlueprint::GetBlueprintClass()
+{ return UWidgetBlueprintGeneratedClass::StaticClass(); }
+UClass* UBlueprint::GetBlueprintClass()
+{ return UBlueprintGeneratedClass::StaticClass(); }
+
+蓝图的GetBlueprintClass返回的是它对应的GeneratedClass的StaticClass。
+
+UMG_Parent_C的ParentClass是 UMyUserWidget
+UMG_Child_C的ParentClass是 UMG_Child_C
+
+同时UMG_Parent_C和UMG_Child_C是 UWidgetBlueprintGenerated类型
+
+
+
+ControlRig: 虚幻引擎提供了一套动画工具，供你直接在引擎中操纵和动画化角色。控制绑定ControlRig
+
+
+TObjectPtr 区别 ？
+TSharedPtr、TWeakPtr
+TSharedRef、TWeakRef ?
+
+TSharedFromThis可以保存一个弱引用。
+MakeShared<>适用于公共构造函数的对象
+MakeShareable<>适用于私有构造函数的对象
+
+MakeShared的时候,构造SharedPtr时内部会通过模板构建父类的TSharedFromThis进行初始化弱引用。
+
+AsShared、SharedThis
+AsShared返回传递给TSharedFromThis的类型
+SharedThis可返回派生类
+
+TObjectPtr: 为了弱引用和关联对象
+	懒加载：为了提供编辑器的加载速度。
+	从全局表中来判断IsValid
+
+
+对象指针、类指针、智能指针、硬引用、软引用
+
+
+静态单播委托
+动态单播委托
+静态多播委托
+动态多播委托
+事件  之间使用及区别
+
+
+C++与蓝图 之间的函数调用
+蓝图的eventDispter 与动态单播之间的关系
+
+动画蓝图
+声音、 SoundClass、MediaSound、MetaSound
+MediaPlayer
+
+UE中的 UObject *Outer怎么理解？
+UObject所在资源包 UPacket 与 Outer 关系？
+
+
+触控、点击事件坐标、世界坐标、屏幕坐标、UI坐标之间关系
+
+模拟触控点击类
+编辑器类
+
+常用的创建接口 Spawn  NewObject 等
+常用对移动组件的 控制接口
+
+
+USlate 与 UMG
+
+OnlineSession ？   UNetConnection不是管理网络的吗？
+
+
+
+-------------------------------------------
+AI模块 行为树 黑板
+Blackboard:代表Memory记忆
+BehaviorTree:代表Brain大脑
+
+RunBehaviorTree()蓝图接口 运行行为树
+行为树：一种模型描述在有限任务集的切换,由简单任务组成的复杂逻辑。
+
+四种元素：Composites(复合)、Decorators(装饰)、Services(服务)、Tasks(任务)
+
+Composites： 分支结点(Sequence、Selector)
+Decorators：条件控制
+Services：会按定义的频率执行
+Tasks：代表各种运行逻辑 或 修改Blackboard黑板的值
+	Decorators、Services可以依附Tasks
+
+执行流：从上到下、从左到右
+
+控制流结点：Sequence、Selector
+	Sequence按顺序执行每个分支,若某个分支运行失败则中断后续调用
+	Selector选择带一个可以执行的分支,从左到右尝试调用一个分支运行成功的
+
+常用Tasks任务：Wait、MoveTo
+常用Decorators修饰：TimeLimit、BlackboardBasedCondition、Loop
+
+BlackboardBaseCondition修饰高优先级分支,设置终止条件(在Blackboard值变动时可以立即重新求值判断执行分支)
+
+BTTask_BlueprintBase 创建新的蓝图任务
+	重载EventReceiveBehaviorAI、SetBlackboardValueAsXXX
+
+AI Perception System：AI感知系统提供给Pawn接收环境数据,如噪音、视野、被伤害的对象等
+AIPerceptionComponent：监听和收集 Stimuli(刺激) Sources
+
+流程：
+	给EnemyController添加AIPerceptionComponent组件，组件设置sense感官(视觉、听觉等)。每种感官拥有不同的配置(SightConfig包含视野半径、角度等。HearingConfig)
+	AIPerceptionComponent：重载OnTargetPerceptionUpdate(Actor、Stimulus)事件
+	GetSenseClassForStimulus获取刺激类型、BreakAIStimulus获取具体数值
+
+	给玩家添加 AIPerceptionStimuliSource组件，设置对应的刺激源类型。在合适的时机报告刺激如ReportNoiseEvent噪音事件
+ 
+调试： 运行时~键显示调试UI、Tab键与Pawn脱钩自由观察
+
+EnvironmentQuerySystem环境查询系统
+Plugins插件中启用 EnvironmentQueryEditor
+
+行为树中RunEQSQuery结点，创建对应查询蓝图对象
+查询图表中使用不同的生成器:Points:Circle、Points:Cone、Points:Grid、Composite、ActorsOfClass
+	会在AI对象生成平铺的一堆球体点，给生成器添加Test来赋与不同的权重
+	可以添加多个Test来过滤和打分。如过滤靠近墙体的、按距离和角度打分
+
+EQSTestingPawn:测试用Pawn
+运行按3启用EQS调试系统
+
+-------------------------------------------
+
+GAS系统(GameAbilitySystem游戏系统框架系统)
+支持复制和预测(动作的预测和回滚)
+开启插件：GameplayAbilities、GameplayTagsEditor
+
+技能的流程：判断是否能触发、扣除消耗、播放动作动画、进行逻辑伤害结算、播放粒子特效和音效等。以上流程失败可能涉及技能取消和动画停止。
+
+
+逻辑部分：
+	技能的获得和释放
+	触发判断的条件
+	Buff系统
+视听部分:
+	动作动画、特效、声效
+数据部分：
+	数值计算
+	数据配置
+联网部分：网络延迟、丢包
+
+
+UAbilitySystemComponent - ASC
+UGameplayAbility		- GA 定义一个技能的主体逻辑
+UGameplayEffect			- GE 定义一个技能的效果(一般进行属性的修改或动作效果的触发)
+UGameplayCueNotify		- GC 定义一个技能的特效部分
+
+FGameplayAttributeData	- Attribute 游戏属性,如生命、攻击力、防御力
+	多个Atrribute组合成AtrributeSet挂在Actor上
+FGameplayTag			- Tag 标签系统
+UGameplayTask			- Task 异步操作 
+FGameplayEventData		- Event ASC之间发送游戏事件通知对方
+
+
+
+GameplayTags与GameplayTasks 是独立的模块
+
+UGameplayTagsManager将所有Tag组成结点树
+FGameplayTag
+	FName TagName
+FGameplayTagContainer
+	TArray<FGameplayTag> GameplyaTags
+FGameplayTagQuery
+	TArray<FGamplayTag> TagDictionary
+FGameplayTagNode
+	FName TagName
+	FGameplayTagNode * ParentNode;
+	TArray<FGameplayTagNode*> ChildTags
+UGameplayTagsManager : public UObject
+	TSharedPtr<FGameplayTagNode> GameplayRootTag;
+
+
+GamplayAttribute 游戏属性
+	float BaseValue:基础值
+	float CurrentValue: 当前值
+从DataTable或CurveTable里读取值
+
+FGameplayAttributeData 蓝图结构体
+	float BaseValue
+	float CurrentValue
+
+FGameplayAttribute
+	FString AttributeName;
+	UStruct* AttributeOwner;
+	TFieldPath<FProperty> Attribute;
+	void SetUProperty(FProperty *NewProperty)
+	{
+		Attribute = NewProperty;
+		if(NewProperty){
+			AttributeOwner = Attribute->GetOwnerStruct();
+			Attribute->GetName(AttributeName)
+		}else{
+			AttributeOwner = nullptr;
+			AttributeName.Empty()
+		}
+	}
+	FProperty* GetUProperty(){ return Attribute.Get(); }
+	FGameplayAttributeData* GetGameplayAttributeData(UAttributeSet* Src);
+
+UAttributeSet : public UObject
+{
+	uint32 bNetAddressable;
+
+}
+
+
+
+FConditionalGameplayEffect
+	TSubclassOf<UGameplayEffect> EffectClass;
+	FGameplayTagContainer RequiredSourceTags;
+
+	bool CanApply(FGameplayTagContainer& SourceTags, float SourceLevel);
+	FGameplayEffectSpecHandle CreateSpec(FGameplayEffectContextHandle EffectContext, float SourceLevel);
+
+FGameplayEffectExecutionDefinition
+	TSubclassOf<UGameplayEffectExecutionCalculation> CalculationClass;
+	FGameplayTagContainer PassedInTags;
+	TArray<FGameplayEffectExecutionScopedModifierInfo> CalculationModifiers;
+	TArray<FConditionalGameplayEffect> ConditionalGameplayEffects;
+
+FGameplayModifierInfo
+	FGameplayAttribute Attribute;
+	TEnumAsByte<EGameplayModOp::Type> ModifierOp = EGameplayModOp::Additive
+
+	FGameplayEffectModifierMagnitude ModifierMagnitude;//修改量
+	FGameplayTagRequirements SourceTags、TargetTags
+
+	FGameplayModEvaluationChannelSettings EvaluationChannelSetting;
+
+FSetByCallerFloat
+	FName DataName;
+	FGameplayTag DataTag
+
+FGameplayEffectModifierMagnitude
+	EGameplayEffectMagnitudeCalcution MagnitudeCalculationType//类型
+	FScalableFloat ScalableFloatMagnitude;//浮点值
+	FAttributeBasedFloat AttributeBasedMagnitude;//基于一个属性计算得出修改量
+	FCustomCalculationBasedFloat CustomMagnitude;//自定义计算逻辑
+	FSetByCallerFloat SetByCallerMagnitude;//指定的代码或蓝图
+
+FGameplayEffectCue
+	FGameplayAttribute MagnitudeAttribute;
+	float MinLevel,MaxLevel;
+	FGameplayTagContainer GameplayCueTags;
+
+FAggregator数值计算聚合器
+FinalValue = ( (BaseValue+PreAdditive)*MultiplicitiveAdditive ) / Division * MultiplicitiveComposite + PostAdditive
+MultiplicitiveAdditive = [1+(P1-1)+(P2-1)]
+Division = [1+(P1-1)+(P2-1)]
+MultiplicitiveComposite = P1*P2
+
+
+UGameplayEffect是数据模板,UGameplayAbility::Apply之后根据UGameplayEffect产生实例数据FGameplayEffectSpec
+FGameplayEffectSpec
+	const UGameplayEffect *Def;
+	float level
+FActiveGameplayEffect
+	FGameplayEffectSpec
+FActiveGameplayEffectsContainer
+	TArray<FActiveGameplayEffect> GameplayEffects_Internal;
+UAbilitySystemComponent
+	FActiveGameplayEffectsContainer ActiveGameplayEffects;
+
+
+GameplayCue 技能特效  全局配置Tag-Handler的映射
+	可重载： OnActive、WhileActive、Executed、Removed
+
+Static Cue直接在CDO上调用。
+Actor Cue 触发Spawn 会被缓存
+
+GameAplibity
+	可重载：ActivateAbility、CommitAbility、CancelAbility、EndAbility
+-------------------------------------------
+
+AttributeSet 与 PlayerData 与属性复制 区别？
+
+USaveGame 的使用
+
+DataTable
+
+
+动画蓝图 动画蒙太奇 动画混合
+
+UChildActorComponent 与 SceneComponent 区别
+
+APlayerCameraManager
+
+
+UNetDriver管理UNetConnection
+FWorldContext管理UNetDriver
+UGameInstance直接管理ULocalPlayer
+
+Player对象接入World之后,开始控制Pawn、PlayerController生成
+
+
+UObject具有反射、序列化、网络同步的功能
+
+但是网络复制 却是从AActor开始的？ ActorChannel
+
+
+-------------------------------------------
+渲染管线：
+	应用阶段、几何阶段、光栅化阶段
+	应用阶段主要是准备场景数据：摄像机(位置和视锥体)、模型(材质)、灯光。(剔除不显示的)
+	几何阶段：
+		顶点数据->顶点着色器->曲面细分着色器(可选)->几何着色器->裁剪->屏幕映射
+	光栅化阶段：
+		屏幕坐标系的顶点位置及额外信息->三角形设置->三角形遍历->片元着色器->逐片元操作->屏幕图形
+
+应用阶段输出两个：渲染状态(材质、纹理、灯光数据)、渲染图元(点、线、三角面、几何模型)
+几何阶段：
+	针对渲染图元的每个顶点 -> 顶点着色器(无法创建或销毁)主要是坐标转换(模型坐标直接转齐次裁剪坐标(归一化))
+	模型坐标->世界坐标->摄像机(为原点)坐标->裁剪坐标  多次串联成一个MVP矩阵
+
+	曲面细分着色器、几何着色器都是可选的。其中几何着色器进行逐图元操作(可以生成更多图元，如粒子特性)
+
+	裁剪：是视野外的被裁剪生成新的顶点
+	屏幕映射：与分辨率相关。由单位坐标进行缩放
+光栅化阶段：
+	三角形设置：获取三角形表达式。
+	三角形遍历：检测每个像素，生成一个片元。多个三角网格，所以一个像素多个片元。这里主要是根据三角形顶点对覆盖区域的像素进行插值。
+	片元着色器：纹理采样等众多重要的渲染技术,透明度测试
+	逐片元操作：主要是输出合并。模板测试、深度测试、混合等。
+
+-------------------------------------------
+
+
+AttributeSet 定义所有的GameplayAttributes
+
+class GAMEPLAYABILITIES_API UAttributeSet : public UObject
+{
+	uint32 bNetAddressable:1
+	AActor* GetOwningActor()
+	UAbilitySystemComponent* GetOwingAbilitySystemComponent()
+	UAbilitySystemComponent* GetOwingAbilitySystemComponentChecked()
+	FGameplayAbilityActorInfo* GetActorInfo()
+	void PreAttributeChange(FGameplayAttribute& Attribute, float& NewValue) { }
+	void PostAttributeChange(FGameplayAttribute& Attribute, float OldValue, float NewValue) { }
+
+	void PreAttributeBaseChange(FGameplayAttribute& Attribute, float& NewValue) const { }
+	void PostAttributeBaseChange(FGameplayAttribute& Attribute, float OldValue, float NewValue) const { }
+
+}
+
+struct FGameplayAttributeData
+{
+	float BaseValue;
+	float CurrentValue;
+
+	float GetBaseValue()
+	void SetBaseValue(float NewValue)
+	float GetCurrentValue()
+	void SetCurrentValue(float NewValue)
+}
+struct FGameplayAttribute
+{
+	FString AttributeName;
+	TFieldPath<FProperty> Attribute;
+	TObjectPtr<UStruct> AttributeOwner;
+	void SetUProperty(FProperty *NewProperty)
+	{
+		Attribute = NewProperty;
+		if(NewProperty){
+			AttributeOwner = Attribute->GetOwnerStruct();
+			Attribute->GetName(AttributeName)
+		}else{
+			AttributeOwner = nullptr;
+			AttributeName.Empty();
+		}
+	}
+	FProperty* GetUProperty() const
+	{ return Attribute.Get(); }
+}
+
+
+struct FFieldPath
+{
+	mutable FField* ResolvedField = nullptr;
+	mutable TWeakObjectPtr<UStruct> ResolvedOwner;
+	TArray<FName> Path
+}
+
+template<class PropertyType>
+struct TFieldPath : public FFieldPath
+{}
+
+
+
+Actor的属性复制Replicated与RPC
+
+反射宏标记：
+	UPROPERTY(Replicated)
+	UPROPERTY(ReplicatedUsing=OnRep_XXXX)
+	UPROPERTY(NoReplicated)//复制时跳过该属性(仅对Struct属性有效 Struct的UPROPERTY字段默认复制)
+
+	PushModel:
+		属性复制时，如果每帧都去执行属性的对比操作比较浪费。所以引入PushModel.
+		手动标记(MarkDirty)字段被修改了，才会触发对比复制
+		DefaultEngine.ini中 开启  [SystemSettings] net.IsPushModelEnabled = 1
+
+	实现GetLifetimeReplicatedProps指定属性复制策略
+	void XXX::GetLifetimeReplicatedProps(...) const
+	{
+		DOREPLIFETIME_CONDITION(XXX, RepRootMotion, COND_SimulatedOnly)
+
+		//PushModel模式 手动标记
+		FDoRepLifetimeParams SharedParams;
+		SharedParams.bIsPushBased = true;
+
+		DOREPLIFETIME_WITH_PARAMS_FAST(XXX, bIsActive, SharedParams)
+		DOREPLIFETIME_WITH_PARAMS_FAST(XXX, bReplicates, SharedParams)
+	}
+	//DS端在修改时 需要MarkDirty才会进行对比检测
+	void UActorComponet:SetIsReplicatedByDefault(bNewReplicates)
+	{
+		MARK_PROPERTY_DIRTY_FROM_NAME(UActorComponent, bReplicates, this)
+	}
+
+	void XXX::OnRep_YYYY()
+	{}
+	void XXX_HealthSet:::OnRep_Health(const FGameplayAttributeData& OldValue)
+
+	属性复制的执行入口  int64 UActorChannel::ReplicateActor()
+
+
+RPC函数标记：
+	//DS端调用主控端的RPC   (DS调用,主控端执行)
+	UFUNCTION(unreliable, Client)
+	void RPC_ClientTest()
+	//主控端调用DS的RPC  (主控端调用 DS端执行)
+	UFUNCTION(unreliable, Server)
+	void RPC_ServerTest()
+	//广播RPC  (DS调用, DS端和所以客户端执行)
+	UFUNCTION(unreliable, NetMulticast)
+	void RPC_MulticastTest()
+
+	Actor、ActorComponent、GameplayAbility对CallRemoteFunction()的实现
+
+ENetRole AActor::GetRemoteRole()
+ENetRole AActor::GetLocalRole()
+
+enum ENetRole : int
+{
+	ROLE_None,
+	ROLE_SimulatedProxy;模拟代理
+	ROLE_AutonomousProxy;自治代理
+	ROLE_Authority;权威
+}
+============================================================================================================================================
+
+
+-------------------------------------------
+
+网络通信：
+UE的网络通信是基于Channel的,每个网络连接(NetConnection)都包含了多个通信通道(Channel)。其中主要的是ActorChannel。
+每个支持网络复制的Actor都会在各个网络连接中创建一个ActorChannel与该连接进行网络通信交互。主要是复制对该Actor及Actor关联的且支持网络复制的UObject(如组件)进行属性复制和RPC的调用。
+基本概念：
+	UNetDriver
+	UPlayer
+	UNetConnection
+	APlayerController
+	UChannel
+	Packet
+	Bunch
+	Ack
+	FNetBitWriter/FNetBitReader
+	UPackageMap
+
+一个网络连接包含ControlChannel、VoiceChannel、多个ActorChannel
+
+网络驱动NetDriver: 负责管理网络连接、处理网络数据包的发送和接收、以及处理网络通信的其他重要任务。
+	管理网络连接：包括建立、维护和关闭与客户端和服务器之间的连接
+	收发包处理: RPC调用和Actor属性复制
+	允许开发人员配置网络设置：如带宽限制、丢包模拟等，以优化网络性能和稳定性
+
+UNetDriver : public UObject, public FExec
+	TObjectPtr<UNetConnection> ServerConnection
+	TArray<TObjectPtr<UNetConnection>> ClientConnections;
+	FConnectionMap MappedClientConnections;
+	TObjectPtr<UWorld> World;
+	TObjectPtr<UPackage> WorldPackage;
+	TArray<FChannelDefinition> ChannelDefinitions;
+	TMap<FName, FChannelDefinition> ChannelDefinitionMap;
+	TArray<TObjectPtr<UChannel>> ActorChannelPool
+	TMap<FNetworkGUID, TSet< FObjectReplicator* > > GuidToReplicatorMap;
+
+	void ProcessRemoteFunction(AActor*,UFunction*,Void* Parameters,FOutParmRec*,FFrame* Stack, SubObjcet=nullptr)
+
+	void TickFlush(float DeltaSeconds);//发包处理
+	void TickDispatch(float DeltaTime);//收包处理
+
+UNetDriver的主要类型：
+	UIpNetDriver 基于UDP协议的网络驱动程序，用于快速的数据传输
+	UDemoNetDriver 用于模拟网络行为，用于游戏录制、回放之类
+	UWebSocketNetDriver 基于WebSocket的网络驱动程序
+	UStreamNetDriver Steam专用的网络驱动程序
+
+	主要使用其子类UIpNetDriver,默认都是基于UDP Socket进行通信的
+
+UPlayer 玩家连接信息。
+	可以理解为玩家的输入信息。主要持有TObjectPtr<APlayerController> PlayerController;
+	
+	对于连接客户端的DS端玩家角色，输入信息是由连接客户端的网络通信连接来提供
+	输入信息的
+	网络通信连接UNetConnection继承自UPlayer
+
+	对于一个客户端的玩家角色(主控端角色)其输入信息是由连接DS端的网络通信连接和本地输入连接一起提供。
+	本地输入连接ULocalPlayer继承自UPlayer
+
+NetConnection 网络连接
+UNetConnection : public UPlayer
+	TArray<TObjectPtr<UChildConnection>> Children
+	TObjectPtr<UNetDriver> Driver;
+	TObjectPtr<UPackageMap> PackageMap;
+	TArray<TObjectPtr<UChannel>> OpenChannels;
+	TArray<TObjectPtr<UChannel>> Channels;
+	TArray<TObjectPtr<UChannel>> ChannelsToTick;
+	TMap<int32, int32> ChannelIndexMap;
+	TObjectPtr<AActor> ViewTarget;
+	TObjectPtr<AActor> OwningActor;引用一个controlling actor。
+
+	FURL URL
+	TSharedPtr<FInternetAddr> RemoteAddr;
+	EConnectionState State;
+	//Net id of remote player on this connection. Only valid on client connections(server side)
+	FUniqueNetIdRepl PlayerId;
+
+	FBitWriter SendBunchHeader
+	FBitWriter SendBuffer;
+	FActorChannelMap ActorChannels;
+	TOptional<TCircularBuffer<TUniquePtr<FBitReader>>> PacketOrderCache;
+
+APlayerController
+	主要相关的成员变量：
+		//分配的连接信息UPlayer
+		//客户端是ULocalPlayer DS是网络连接UNetConnection
+		TObjectPtr<UPlayer> Player
+		TObjectPtr<UNetConnection> NetConnection;
+
+	PlayerController关联一个主连接信息Player(UPlayer对象)
+	主控端角色是ULocalPlayer DS端角色是UNetConnection
+	对于联网游戏的主控客户端玩家，除了接收来自本地ULocalPlayer提供的输入信息。还需要有一个接收来自DS端提供的输入信息。
+
+PlayerController绑定连接流程
+	DS端：
+		1.服务器收到客户端的加入游戏消息 NMT_Join
+		创建PlayerController, UWorld::SpawnPlayActor
+		2.设置网络连接(NetConnection和Player 都是传入的网络连接)同时给
+		3.网络连接UNetConnection绑定OwningActor(相互关联) APlayerController::SetPlayer
+
+	Client端：
+		1.接受到复制PlayerController的消息,创建新的ActorChannel。UActorChannel::NotifyActorChannelOpen
+		2.PlayerController处理创建ActorChannel, APlayerController::OnActorChannelOpen
+		3.网络连接UNetConnection跟PlayerController互相绑定,给PlayerController分配一个LocalPlayer, UNetConnetion::HandleClientPlayer
+		4.设置连接信息(NetConnection是服务器网络连接 Player是分配的LocalPlayer) APlayerController::SetPlayer
+
+Channel 网络通信通道
+	网络通信的数据通道(每个通道只负责交换某一个特定类型特定实例的数据信息)
+	ControlChannel:
+		主要是发送接受连接与断开的相关信息。在一个Connection中只会在初始化连接的时候创建一个该通道的实例
+	VoiceChannel:
+		用于发送接收语音消息。同样在一个Connection中只会在初始化连接的时候创建一个该通道的实例
+	ActorChannel:
+		网络同步的主要通道,处理Actor本身相关信息的同步,包括自身的同步以及SubObject
+		属性的同步、RPC调用等
+		每个连接(Connection)里的会为每个网络相关的Actor创建一个ActorChannel实例。
+		对于网络休眠的Actor(Dormant)不会进行网络同步
+
+其他收发包相关概念：
+	Packet: 从Socket读出来的消息包数据
+	网络消息包Packet分为包头数据、包体数据
+	包头数据主要包含了本次发送的消息包的序列号和Ack数据,包体数据主要是Bunch数据
+	Bunch:
+		主要记录了Channel信息(比如ActorChannel主要是属性复制和RPC)，同时包含其他的附属信息。如是否为完整的Bunch、是否是可靠等
+		Bunch数据过大可能会拆分成多个子Bunch分开传输,再在收包时合并
+	Ack:
+		用于实现UDP的可靠数据传输,UDP传输时应答数据包(用于校验是否丢包)
+	FNetBitReader/FNetBitWriter
+		网络收发包的序列化类，继承自FArchive。负责网络收发包时的序列化和反序列化
+	FScoket:
+		所有平台Socket的基类。FSocketBSD为使用了winSocket的Socket封装
+	UPackageMap:
+		生成与维护UObject实例与NetGUID的映射绑定，负责UObject实例的网络传输序列化(保证客户端和DS端通过网络传输的UObject实例指针能一一对应上)。每一个网络连接Connection对应一个UPacakgeMap
+	UPacketHandler:
+		网络包预处理，比如加密、前向纠错、握手等。里面有一个或多个HandlerComponents来执行特殊的数据处理。
+		目前内置的包括加密组件RSA、AES。以及必备的握手组件StatelessConnectHandlerComponent
+
+弱网环境和丢包率模拟：
+	编辑器偏好设置->播放-> 启用网络模拟
+网络分析器 NetworkProfiler 暂无
+
+-------------------------------------------
+
+连接建立与断开
+	建立网络连接：由ControlChannel负责控制客户端与服务端建立连接的通道
+		DS创建监听：
+			DS端在启动时,会通过UWorld::Listen创建网络模块NetDriver、创建和帮定Socket
+			bool UWorld::Listen(FURL)
+			{
+				if(GEngine->CreateNamedNetDriver(this, NAME_GameNetDriver, NAME_GameNetDriver))
+				{
+					NetDriver->SetWorld(this)
+					...
+				}
+				if(!NetDriver->InitListen(this, URL, bReuseAddressAndPort, Error))
+				{ ... }
+			}
+			//InitListen 派生类实现
+			bool UIpNetDriver::InitListen(...)
+			{
+				if( !InitBase(false, InNotify, LocalURL, bReuseAddressAndPort, Error))
+					return false;
+				InitConnectionlessHandler();
+				return true;
+			}
+			bool UIpNetDriver::InitBase(...)
+			{
+				...
+				ISocketSubsystem* SocketSubsystem = GetSocketSubsystem()
+				bool bInitBindSocketsSuccess = Resolver->InitBindSockets(..., SocketSubsytem);
+			}
+
+		客户端尝试连接DS：
+			客户端在指定连接的服务器时会创建网络模块并创建一个对应的网络连接ServerConnection
+			UEngine::Browse(FWorldContext&, FURL, FString)
+			void UPendingNetGame::InitNetDriver()
+			UIpNetDriver::InitConnect(FNetworkNotify*, FURL, FString)//Plugins  IpNetDriver.h
+
+			void UIpNetDriver::InitConnect(...)
+			{
+				if(!InitBase(...))
+					return false
+
+				ServerConnection = NewObject<UNetConnection>(...)
+				Resolver->InitConnect(ServerConnection, SocketSubsystem, ...)
+				CreateInitialClientChannels()
+				return true
+			}
+
+		客户端和DS通过握手流程建立连接
+			客户端和DS初始化网络连接后会通过一个握手流程Handshake来建立连接。
+			HandshakePacketType:
+				InitialPacket、Challenge、Response、Ack、RestartHandshake、RestartResponse、VersionUpgrade、Last=VersionUpgrade.
+			会通过四次通信确认连接：  (tcp是三次握手,这里为什么四次？)
+				客户端先跟服务器打招呼->是你吗？ InitialPacket
+				服务器回复->是的,你要进行连接吗？(Challenge)或不是,你找错人了(VersionUpgrade)
+				客户端回复->是的,现在可以连接吗？(Response)
+				服务器回复->可以(Ack)
+
+			InitialPacket:
+				UEngine::Browse(...)
+				UPendingNetGame::InitNetDriver()
+				PacketHandler::BeginHandshaking(...)
+				StatelessConnectHandlerComponent::SendInitialPacket(...)
+			Challenge/VersionUpgrade:
+				UIpNetDriver::TickDispatch(float)
+				UIpNetDriver::ProcessConnectionlessPacket(...)
+				PacketHandler::IncomingConnectionless(...)
+				PacketHandler::Incoming_Internal(...)
+				StatelessConnectHandlerComponent::IncomingConnectionless(...)
+				{
+					bValidVersion = CheckVersion(...)
+					if(bValidVersin && ...)
+						SendConnectChallenge(...)
+					else(...)
+						SendVersionUpgradeMessage(...)
+				}
+			Response:客户端发送连接回复包Response
+				UIpNetDriver::TickDispatch(float)
+				UNetConnection::ReceivedRawPacket(...)
+				PacketHandler::Incoming(...)
+				PacketHandler::Incoming_Internal(...)
+				StatelessConnectHandlerComponet::Incoming(FBitReader &)
+				StatelessConnecthandlerComponent::SendChallengeResponse(...)
+			Ack: 服务器发送连接确认包
+				UIpNetDriver::TickDispatch(float)
+				UIpNetDriver::ProcessConnectionlessPacket(...)
+				PacketHandler::IncomingConnectionless(...)
+				PacketHandler::Incoming_Internal(...)
+				StatelessConnectHandlerComponent::IncomingConnectionless(...)
+				StatelessConnectHandleComponent::SendChallengeAck(...)
+			客户端连接完成：
+				UIpNetDriver::TickDispatch(float)
+				UNetConnection::ReceivedRawPacket(...)
+				PacketHandler::Incoming(...)
+				PacketHandler::Incoming_Internal(...)
+				StatelessConnectHandlerComponet::Incoming(FBitReader &)
+				TDelegate::ExecuteIfBound 运行委托
+				UPendingNetGame::SendInitialJoin()//下一流程登陆游戏
+			加入游戏(登录流程)
+				UPendingNetGame::SendInitialJoin()
+				{
+					FNetControlMessage<NMT_Hello>::Send(...)
+					ServerConn->FlushNet()
+				}
+				DS端收到NMT_Hello后先校验网络通信版本，根据校验结果发送NMT_Challenge(校验通过，是否需要加入游戏)/NMT_Upgrade(校验不通过无法加入游戏)
+				UIpNetDriver::TickDisipatch(float)
+				UNetConnection::ReceivedRawPacket(..)
+				UNetConnection::DispatchPacket(FBitReader&, ...)
+				UChannel::ReceivedRawBunch(...)
+				UChannel::ReceivedNextBunch(...)
+				UChannel::ReceivedSequenceBunch(...)
+				UControlChannel::ReceivedBunch(..)
+				UWorld::NotifyControlMessage(...)
+				UNetConnection::SendChallengeControlMessage()
+
+				客户端收到NMT_Challenge后回复NMT_Login(请求加入游戏)
+				服务端收到NMT_Login后回复NMT_Welcome(欢迎登录游戏)并告诉客户端加载那张地图Map
+					UWorld::NotfigyControlMessage(...)
+					{
+						Case NMT_Login:
+							if(GameMode)
+								GameMode->PreLoginAsync(...)
+					}
+					UWorld::WelcomePlayer(UNetConnection)
+					{ FNetControlMessage<NMT_Welcome>::Send(..)}
+
+				客户端收到NMT_Welcome 回复 NMT_Netspeed并加载地图
+					UEngine::TickWorldTravel()
+					{
+						if(!Context.PendingNetGame->bLoadedMapSuccessfully)
+							LoadMap(Context, Context.PendingNetGame->URL)
+					}
+				地图加载完成后 给DS发送消息 NMT_Join
+					UPendingNetGame::TravelCompleted()
+					UPendingNetGame::SendJoin()
+				DS端收到NMT_Join后，开始执行DS端的登录流程
+					UWorld::NotifyControlMessage()
+					{
+						case NMT_Join:
+							Connection->PlayerController = SpawnPlayActor(...)
+					}
+					APlayerController* UWorld::SpawnPlayActor(...)
+					{
+						if(AGameModeBase* GameMode = GetAuthGameMode())
+						{
+							APlayerController* NewPlayerController = GameMode->Login(...)
+							GameMode->PostLogin(NewPlayerController);
+							return NewPlayerController
+						}
+					}
+
+	断开连接：
+		UE默认流程在玩家断线之后会销毁对应的PlayerControll和绑定的Character。但会在AGameMode的InactivePlayerArray保留一份APlayerState的复制副本
+		AGameMode::Logout
+			AGameMode::AddInactivePlayer
+		断线重连之后从保存的副本还原数据
+		AGameMode::PostLogin(APlayerController* NewPlayer)
+			FindInactivePlayer(NewPlayer)
+
+		若断线后玩家依然存在,可以考虑修改下流程APlayerController::OnNetCleanup 不销毁PlayerController而是保留
+
+		GameMode里用一个列表去直接保存断开连接的PlayerController及其全局唯一标识，客户端连接时带上唯一标识，就能找到保留的PlayerController
+
+	玩家掉线：
+		1.心跳检测 UNetDriver::TickDispatch
+		2.连接是否已经关闭 USOCK_Closed
+		3.清除连接 UNetConnection::CleanUp()
+		4.清除对应的OwingActor(PlayerController)  UNetConnection::DestroyOwingActor()
+		5.PlayerController处理连接关闭(销毁自身) APlayerController::OnNetCleanup()
+		6.PlayerController销毁后的处理 APlayerController::Destroyed()
+		7.销毁关联的玩家 APlayerController::PawnLeavingGame()
+		8.基类的处理(GameMode的Logout之类) AController::Destroyed()
+		9.GameMode的Logout AGameMode::Logout()
+		10.保留一个APlayerState的复制副本,可以在重连时恢复数据 AGameMode::AddInactivePlayer()
+============================================================================================================================================
+
+
+
+Outer、Owner、Instigator
+GetOuterObject()返回其所属对象。 组件的Outer为其Actor
+Actor的Outer为其关卡Level
+
+创建接口：
+	组件： 
+		ComponentPtr = CreateDefaultSubobject<UStaticMeshComponent>(xxx)
+		ComponentPtr->SetupAttachment(RootComponent)
+	Actor: 
+		AMyActor* ins = NewObject<AMyActor>(xxx);
+		UGameplayStatics::BeginPlay(ins);//用于初始化组件
+
+C++无法直接识别蓝图类
+UClass* AClass = LoadClass<AActor>(Outer:NULL, Path)
+LoadClass<>()
+		ins->RegisterGeneratedByConstructor(InLevel);将Actor注册到世界
+
+
+
+
+UObjectGlobals.h
+UPackage* LoadPackage(UPackage* InOuter, const TCHAR* InLongPackageName, ....)
+UPackage* FindPackage(UObject* InOuter, const TCHAR* PackageName)
+UPackage* CreatePackage(const TCHAR* PackageName)
+
+UObject* StaticAllocateObject(const UClass* class, UObject* outer, FName name, EObjectFlags setFlags, ...)
+
+FObjectInitializer
+默认所有类都具有一个构造函数 接受唯一的FObjectInitialize对象
+
+分配的内存空间 InOuter是为了知晓OutMost包Package,其预先划了一大块内存
+StaticAllocateObject(InClass,InOuter)
+每个类实例对象都是采用模块函数来创建, T::StaticClass 就被传入给了InClass
+
+void CollectGarbage(...)
+
+
+
+
+TypeA只含两个指针
+TArray<TypeA, TInlineAllocator<8>> array;
+
+
+
+
+============================================================================================================================================
+Actor与Component
+
+class AActor : public UObject
+	FString ActorLable;
+	TArray<FName> Tags;//用于分组分类
+	TEnumAsByte<enum ENetRole> Role,RemoteRole;//忽略访问层级
+	TObjectPtr<AActor> Owner;
+	TObjectPtr<UInputComponent> InputComponent;
+	TObjectPtr<APawn> Instigator;//鼓动者、驱动
+	TArray<TObjectPtr<AActor>> Children;
+	TObjectPtr<USceneComponent> RootComponent;
+	TWeakObjectPtr<UChildActorComponent> ParentComponent;
+	TSet<TObjectPtr<UActorComponet>> OwnedComponents;
+	TArray<TObjectPtr<UActorComponet>> InstanceComponents;
+	TArray<TObjectPtr<UActorComponent>> BlueprintCreatedComponents;
+
+InstanceComponents:实例化的Components。蓝图里Details定义的Component未实例化，当Actor实例化时，其Component才实例化。
+一个Actor若想被放进Level里,就必须实例化USceneComponent* RootComponent
+
+UActorComponent : public UObject, public IInterface_AssetUserData
+	struct FActorComponentTickFunction PrimaryComponentTick;
+	TArray<FName> ComponentTags;
+	EComponentCreationMethod CreationMethod;
+	mutalbe AActor* OwnerPrivate;
+	UWorld* WorldPrivate;
+	ENGINE_API void ReceiveTick(float DeltaSeconds);
+	ENGINE_API void ReceiveAsyncPhysicsTick(float DeltaSeconds, float SimSeconds);
+//SceneComponent当作RootComponent  其自身可以相互嵌套 形成3D世界中的物体相对位置关系
+USceneComponent : public UActorComponent
+	TWeakObjectPtr<APhysicsVolume> PhysicsVolume;
+	TObjectPtr<USceneComponent> AttachParent;
+	TArray<TObjectPtr<USceneComponent>> AttachChildren;
+	FBoxSphereBounds Bounds;
+	FTransform ComponentToWorld;// relative to the world;
+
+万物皆Node,Node带变换的理念中：汽车车身作为一个Node,嵌套4个轮子Node
+UE里：汽车整体作为一个Actor,车身作为RootComponent,嵌套4个SceneComponent作为轮子。
+
+Actor里TArray<TObjectPtr<AActor>> AttachChildrent体现Actor之间的父子关系。但父子关系确实通过USceneComponent确定的。且子物体主动挂上父Actodr的。
+AActor::AttachToActor()、AActor::AttachToComponent()
+
+enum class EAttachmentRule : uint8 {
+	KeepRelative,
+	KeepWorld,//根据世界坐标系进行移动和旋转，与父对象的位置和方向无关
+	SnapToTarget//与特定点对齐位置
+}
+
+UChildActorComponent担负者Actor之间相互组合的胶水。在蓝图里静态存在的时候并
+不真正的创建Actor,而是在之后Component实例化的时候才真正创建
+UChildActorComponent : public USceneComponent
+	TObject<AActor> ChildActor;
+	TSubclassOf<AActor> ChildActorClass;
+	TObjectPtr<AActor> ChildActorTemplate;//用于细节面板展示属性用
+	//Detect when the parent actor is renamed, in which case we can't preseve the child actor's name 
+	//检测父物体何时被重命名,无法预先确定子物体的命名？
+	UObject* ActorOuter;//物体的名字 xxx.xxx.xxx_101 内含了父子关系
+UPrimitiveComponent : public USceneComponent, 
+						public INavRelevantInterface,
+						public IInterface_AsyncCompilation,
+						public IPhysicsComponent
+	ELightmapType LightmapType;
+	TEnumAsByte<enum ECanBeCharacterBase> CanCharacterStepUpOn;
+	FLightingChannels LightingChannels;
+	int32 RayTracingGroupId;
+	FBodyInstance BodyInstance;
+	TArray<TObjectPtr<URuntimeVirtualTexture>> RuntionVirtualTextures;
+	TArray<TObjectPtr<AActor>> MoveIgnoreActors;
+	TArray<TObjectPtr<UPrimitiveComponent>> MoveIgnoreComponents;
+
+UMeshComponent : public UPrimitiveComponent
+	TObjectPtr<UMaterialInterface> OverlayMaterial;
+	TArray<TObjectPtr<UMaterialInterface>> OverrideMaterials;
+UStaticMeshComponent : public UMeshComponent
+	int32 ForcedLodModel; LOD level
+	TObjectPtr<UStaticMesh> StaticMesh;
+	FColor WireframeColorOverride;
+	//Static mesh LOD data.  Contains static lighting data along with instanced mesh vertex colors
+	TArray<FStaticMeshComponentLODInfo> LODData
+
+============================================================================================================================================
+Level与World
+
+ALevelScriptActor : public AActor
+	uint32 bInputEnable:1;
+AInfo : public AActor
+AWorldSettings : public AInfo, public IInterface_AssetUserData
+	TSubclassOf<AGameModeBase> DefaultGameMode
+	TSubclassOf<AGameNetworkManager> GameNetworkManagerClass;
+	FLinghtmassWorldInfoSettings LightmassSettings;
+	TArray<TObjectPtr<UAssetUserData>> AssetUserData;
+	int32 VisibilityCellSize;
+	FVector LevelInstancePivotOffset;
+	TObjectPtr<UNavigationSystemConfig> NavigationSystemConfig;
+	TObjectPtr<UWorldPartition> WorldPartition;
+	float KillZ;
+	TSubclassOf<UDamageType> KillZDamageType;
+	float TimeDilation 时间流速
+
+ULevel : public UObject, public IInterface_AssetUserData
+							, public ITextureStreamingContainer
+	FURL URL;
+	TArray<TObjectPtr<AActor>> Actors,ActorsForGC;
+	TObjectPtr<UWorld> OwningWorld;
+	TObjectPtr<ALevelScriptActor> LevelScriptActor
+	TObjectPtr<AWorldSettings> WorldSettings;
+	TArray<TObjectPtr<UAssetUserData>> AssetUserData
+	// BSP Model components used for rendering
+	// BSP 整体同步并行计算模型
+	TArray<TObjectPtr<UModelComponent>> ModelComponents;
+	//Data structures for holding the tick functions
+	FTickTaskLevel* TickTaskLevel;
+
+APawn、ACharacter都在Level的Actors里 World保持着ControllerList
+UWorld final : public UObject, public FNetworkNotify
+	TObjectPtr<ULevel>	PersistentLevel
+	TArray<TObjectPtr<ULevelStreaming>> StreamingLevels;//私有
+	TObjectPtr<AGameModeBase>	AuthorityGameMode;
+	TObjectPtr<UNavigationSystemBase>	NavigationSystem;
+	TObjectPtr<UAISytemBase>	AISystem;
+	TArray<TObjectPtr<ULevel>	Levels;
+	TObjectPtr<UWorldComposition> WorldComposition;//用于记录Level的摆放拼接信息
+	TObjectPtr<UGameInstance>	OwningGameInstance
+	TArray<TWeakObjectPtr<AController>> ControllerList;
+	TArray<TWeakObjectPtr<APlayerController>> PlayerControllerList;
+	FTimerManager* TimerManager;
+	FLatentActionManager LatentActionManager://Latent潜在的，用于管理异步执行的节点
+	TArray<AAudioVolume> AudioVolumes
+
+	FURL URL;
+	TObjectPtr<AGameStateBase> GameState;
+	TObjectPtr<UNetDriver> NetDriver
+	TObjectPtr<AGameNetworkManager> NetworkManager
+
+	bool Listen(URL)//开始监听客户端连接
+============================================================================================================================================
+
+WorldContext、GameInstance、Engine
+
+WorldType : {None,Game,Editor,PIE(A Play In Editor World),Preview(编辑器工具预览),Inactive(非活跃，不会被加载或执行)}
+
+struct FWorldContext
+{
+	FString TravelURL;
+	struct FURL LastURL;
+	struct FURL LastRemoteURL
+	TObjectPtr<UGameViewportClient> GameViewport;
+	TObjectPtr<UGameInstance> OwningGameInstance;
+	TObjectPtr<UWorld> ThisCurrentWorld;
+	TArray<TObjectPtr<class ULevel>> LoadedLevelsForPendingMapChange
+	FSeamlessTravelHandler SeamlessTravelHandler
+}
+
+UGameInstance : public UObject, public FExec
+	struct FWorldContext* WorldContext;
+	TArray<TObjectPtr<ULocalPlayer>> LocalPlayers
+	TObjectPtr<UOnlineSession> OnlineSession;
+	TArray<TObjectPtr<UObject>> ReferencedObjects;
+	FString PIEMapName;
+	FTimerManager* TimerManager
+	FLatentActionManager* LatentActionManager
+	FObjectSubsystemCollection<UGameInstanceSubsystem> SubsystemCollection;
+
+	FOnLocalPlayerEvent OnLocalPlayerAddedEvent;
+	FOnLocalPlayerEvent OnLocalPlayerRemovedEvent;
+
+	UEngine* UGameInstance::GetEngine()
+	{
+		return CastChecked<UEngine>(GetOuter());
+	}
+
+UEngine : public UObject, public FExec
+	TSubclassOf<UGameViewportClient> GameViewportClientClass;
+	TSubclassOf<ULocalPlayer> LocalPlayerClass;
+	TSubclassOf<AWorldSettings> WorldSettingsClass;
+	TSubclassOf<UNavigationSystemBase> NavigationSystemClass;
+	TObjectPtr<UAssetManager> AssetManager;
+	TIndirectArray<FWorldContext> WorldList;
+	TObjectPtr<UPendingNetGame> PendingNetGame;//客户端网络连接驱动
+
+UEditorEngine ： public UEngine
+	TObjectPtr<UWorld> PlayWorld;
+	TObjectPtr<UWorld> EditorWorld;
+	TArray<FEditorViewportClient*> AllViewportClients;
+
+UGameEngine : public UEngine
+	TObjectPtr<UGameInstance> GameInstance;
+	TWeakPtr<SWindow> GameViewportWindow;
+	TSharedPtr<FSceneViewport> SceneViewport;
+	TSharedPtr<SViewport> GameViewportWidget;
+
+FEngineLoop::Init()
+	if( !GIsEditor )
+		GEngine = NewObject<UEngine>(GetTransientPackage(), EngineClass);
+	else
+		GEngine = GEditor = GUnrealEd = NewObject<UUnrealEdEngine
+
+UGameplayStatics : public UBlueprintFunctionLibrary
+
+
+
+UEngine::CreateNewWorldContext(EWorldType::Type WorldType)
+UEditorEngine
+	CreateNewWorldContext(EWorldType::Editor)
+	CreateInnerProcessPIEGameInstance()
+UGameInstance
+	InitializeStandalone
+		CreateNewWorldContext(EWorldType::Game)
+	InitializeForPlayInEditor
+		CreateNewWorldContext(EWorldType::PIE)
+UGameEngine::Init
+	FSoftClassPath GameInstanceClassName = GetDefault<UGameMapsSettings>()->GameInstanceClass;
+	GameInstance = NewObject<UGameInstance>(this, GameInstanceClass);
+	GameInstance->InitializeStandalone();
+
+
+============================================================================================================================================
+
+Pawn
+
+APawn : public AActor, public INavAgentInterface
+	uint32 bInputEnable:1;
+	FVector COntrollInputVector, LastControlInputVector;
+	float BaseEyeHeight
+	TEnumAsByte<EAutoReceiveInput::Type> AutoPossessPlayer;
+	EAutoPossessAI AutoPossessAI;
+	uint8 RemoteViewPitch;
+
+	TSubclassOf<AController> AIControllerClass;
+	TObjectPtr<APlayerState> PlayerState;
+	TObjectPtr<AController> Controller, LastHitBy, PreviousCOntroller;
+	TSubclassOf<UInputComponent> OverrideInputComponentClass = nullptr;//用于初始化AActor的UInputComponent
+
+	uint32 bUserControllerRotationPitch:1;
+	uint32 bUserControllerRotationYaw:1;
+	uint32 bUserControllerRotationRoll:1;
+APawn三种基本接口：可被Controller控制、PhysicsCollision表示、MovementInput的基本响应接口
+	AController* APawn::GetController()
+	void APawn::PossessedBy(NewController)//被支配
+
+	UPawnMovementComponent* APawn::GetMovementComponent()
+	其中物理表示以及移动组件 在派生类实现
+	SetupPlayerInputComponent(InputComponet)//用于在派生类对InputComponent进行绑定输入映射及指定值
+	void APawn::AddMovementInput()同一处理派生类的控制移动接口 
+	同一转发给 MovementComponent->AddInputVector()
+
+ADefaultPawn : public APawn
+	TObjectPtr<UPawnMovementComponent> MovementComponent;
+	TObjectPtr<USphereComponent> CollisionComponent;//物理碰撞
+	TObjectPtr<UStaticMeshComponent> MeshComponent
+	// 移动组件 需要关联 物理碰撞组件
+	MovementComponent->UpdateComponent = CollisionComponent
+	// 物理碰撞 物理外观Mesh都需要设置 碰撞检测属性
+	CollisionComponent->SetCollisionProfileName()
+	MeshComponent->SetCollisionProfileName()
+	-- 移动接口
+	void MoveForward(float Val)
+	void MoveRight(float Val)
+	void MoveUp_World(float Val)
+	void TurnAtRate(float Rate)
+	void LookUpAtRate(float Rate)
+
+//观战
+ASpectatorPawn : ADefaultPawn
+	仅重写三个接口:PossessedBy、TurnAtRate、LookUpAtRate
+
+ACharacter : public APawn
+	TObjectPtr<USkeletalMeshComponent> Mesh
+	TObjectPtr<UCharacterMovementComponent> CharacterMovement;
+	TObjectPtr<UCapsuleComponent> CapsuleComponent;
+
+	无MoveForward等接口,因为网络同步位置的原因更复杂
+	CharacterMovement->smoothCorrection()//平滑修正 位置朝向
+	void OnRep_ReplicatedBasedMovement()
+	void PostNetReceiveLocationAndRotation()
+
+
+============================================================================================================================================
+
+
+AController : public AActor, public INavAgentInterface
+	TObjectPtr<APlayerState> PlayerState;
+	TObjectPtr<APawn> Pawn;
+	TObjectPtr<ACharacter> Character;
+	TObjectPtr<USceneComponet> TransformComponent;
+	FRotator ControlRotation;
+	FName StateName; Current gameplay state
+
+	void Possess(APawn* InPawn) final  支配Pawn
+	void UnPossess() final 取消支配
+
+	void AttachToPawn(APawn* InPawn);
+	void DetachFromPawn();
+	void StopMovement();
+
+APlayerController : public AController
+					, public IWorldPartitionStreamingSourceProvider
+	TObjectPtr<UPlayer> Player;
+	TObjectPtr<APawn> AcknowledgedPawn;
+	TObjectPtr<AHUD> MyHUD;
+	TObjectPtr<UPlayerInput> PlayerInput;
+	TObjectPtr<APlayerCameraManager> PlayerCameraManager;
+
+	uint8 NetPlayerIndex
+	TObjectPtr<UNetConnection> NetConnection;
+
+	TArray<TObjectPtr<AActor>> HiddenActors;//不希望摄像机看见的Actors
+	TObjectPtr<UCheatManager> CheatManager
+	FRotator TargetViewRotation
+
+	void SetPlayer(UPlayer* InPlayer)
+	ULocalPlayer* GetLocalPlayer()
+	PlayerController只有在SetPlayer之后才开始正常工作
+	void SwitchLevel(URL)//服务端下发切换关卡
+
+任意时刻 Player:PlayerController:PlayerState都是 1:1:1关系
+
+AAIController : public AController
+				,public IAIPerceptionListenerInterface
+				,public IGameplayTaskOwnerInterface
+				,public IGenericTeamAgentInterface
+				,public IVisualLoggerDebugSnapshotInterface
+
+	TObjectPtr<UBrainComponent> BrainComponent;
+	TObjectPtr<UAIPerceptionComponent> PerceptionComponent;
+	TObjectPtr<UBlackboardComponent> Blackboard
+	TObjectPtr<UGameplayTasksComponent> CachedGameplayTasksComponent
+
+	FGenericTeamId TeamId
+
+	EPathFollowingRequestResult::Type MoveToActor()
+	EPathFollowingRequestResult::Type MoveToLocation()
+	void SetFocus()
+	bool RunBehaviorTree(UBehaviorTree* BTAsset)
+	bool UseBlackboard(...)
+	void ClaimTaskResource(...)
+============================================================================================================================================
+GameMode GameState
+//AInfo 基本上无信息 只是继承AActor
+AGameModeBase : public AInfo
+	TSubclassOf<AGameSession> GameSessionClass;
+	TSubclassOf<AGameStateBase> GameStateClass;
+	TSubclassOf<APlayerController> PlayerControllerClass;
+	TSubclassOf<APlayerState> PlayerStateClass;
+	TSubclassOf<AHUD> HUDClass;
+	TSubclassOf<APawn> DefaultPawnClass;
+	TSubclassOf<ASpectatorPawn> SpectatorClass;
+
+	TObjectPtr<AGameSession> GameSession;
+	TObjectPtr<AGameStateBase> GameState
+	TObjectPtr<AServerStatReplicator> ServerStatReplicator;
+
+
+	void InitGame()
+	void InitGameState()
+	void PreLogin()
+	APlayerController* Login(UPlayer* NewPlayer, ...)
+	void PostLogin(APlayerController* NewPlayer)
+	void Logout(Acontroller* Exiting)//当一个Controller
+
+	bool SetPause()
+	void StartPlay()
+	void RestartPlayer(AController* NewPlayer);
+	bool HasMatchStarted()
+	bool HasMatchEnded()
+
+	void ProcessServerTravel(URL, bAbsolute)
+	APlayerController* ProcessClientTravel(URL,bSeamless,bAbsolute)
+	void GetSeamlessTravelActorList(...)
+
+AGameMode : public AGameModeBase
+	FName MatchState;
+	int32 NumPlayers,NumBots,NumTravellingPlayers;
+	TArray<TObjectPtr<APlayerState>> InactivePlayerArray
+
+	void Broadcast()//广播字符串给所有玩家
+
+AGameStateBase : public AInfo
+	TArray<TObjectPtr<APlayerState>> PlayerArray;//这个不同步, PlayerState 会各自同步
+	float ReplicatedWorldTimeSeconds;//网络同步
+	double ReplicatedWorldTimeSecondsDouble
+	FTimerHandle TimerHandle_UpdateServerTimeSeconds;
+
+	UWorld* World = GetWorld()
+	World->SetGameState(this)
+	UpdateServerTimeSecondes()//从World->GetTimeSeconds() 然后网络复制出去
+	GetWorldTimerManager().SetTimer(TimerHandle_UpdateServerTimerSecondes, ...)
+	遍历World中的APlayerState 添加进PlayerArray数组
+
+AGameState ： public AGameStateBase
+	FName MatchState;//网络同步
+	int32 ElapsedTime;//网络同步
+============================================================================================================================================
+
+UPlayer : public Uobject, public FExec
+	TOjbectPtr<APlayerController> PlayerController
+	int32 CurrentNetSpeed
+
+	void SwitchController(APlayerController* PC)
+
+ULocalPlayer : public UPlayer
+	FUniqueNetIdRepl CachedUniqueNetId
+	TObjcetPtr<UGameViewportClient> ViewportClient;
+	// the controller ID which this player accepts input from
+	int32 ControllerId
+
+
+RepNotify
+
+GA  GameplayCue GameplayTags
+AttrubiteSet
+
+============================================================================================================================================
+
+UGameInstance : public UObject, public FExec
+	FWorldContext* WorldContext;
+	TArray<TObjectPtr<ULocalPlayer>> LocalPlayers
+	TObjectPtr<UOnlineSession> OnlineSession;
+	TArray<TObjectPtr<UObject>> ReferencedObjects;
+	FString PIEMapName;
+
+	UEngine* GetEngine()
+	FWorldContext* GetWorldContext()
+	UGameViewportClient* GetGameViewportClient()
+	ULocalPlayer* CreateLocalPlayer(...)
+	AGameModeBase* CreateGameModeForURL(FURL, UWorld*)
+
+	FOnLocalPlayerEvent OnLocalPlayerAddedEvent;
+	FOnLocalPlayerEvent OnLocalPlayerRemoveEvent;
+
+	FTimerManager* TimerManager;
+	FLatentActionManager* LatentActionManager;
+
+	FObjectSubsystemCollection<UGameInstanceSubsystem> SubsystemCollection;
+
+============================================================================================================================================
+
+
+代码细节
+
+//还有相关接口未展示,且不同子类重写不同接口
+Begin UObject Interface
+ENGINE_API virtual void BeginDestroy() override;
+ENGINE_API virtual bool IsPostLoadThreadSafe() const override;
+ENGINE_API virtual void PreNetReceive() override;
+ENGINE_API virtual void PostNetReceive() override;
+ENGINE_API virtual void PostRepNotifies() override;
+ENGINE_API virtual Serialize(FArchive& Ar) override;
+//还有一些与编辑器相关的
+End UObject Interface
+
+Begin ActorComponent Interface
+ENGINE_API virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+ENGINE_API virtual void OnRegister() override;
+ENGINE_API virtual void OnUnregister() override;
+ENGINE_API virtual void EndPlay(EEndPlayReason::Type Reason) override;
+ENGINE_API virtual bool ShouldCreateRenderState() const override {return true;};
+
+virtual void UpdateComponentToWorld(EUpdateTransformFlags UpdateTransformFlags = EUpdateTransformFlags::None, ETeleportType Teleport = ETeleportType::None) override final
+{
+	UpdateComponentToWorldWithParent(GetAttachParent(), GetAttachSocketName(), UpdateTransformFlags, RelativeRotationCache.RotatorToQuat(GetRelativeRotation()), Teleport);
+}
+
+ENGINE_API virtual void DestroyComponent(bool bPromoteChildren = false) override;
+ENGINE_API virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
+ENGINE_API virtual TStructOnScope<FActorComponentInstanceData> GetComponentInstanceData() const override;
+//还有一些与编辑器相关的
+End ActorComponent Interface
+
+
+ENGINE_API virtual
+ENGINE_API virtual
+ENGINE_API virtual
+ENGINE_API virtual
+ENGINE_API virtual
+ENGINE_API virtual
+ENGINE_API virtual
+ENGINE_API virtual
+ENGINE_API virtual
+ENGINE_API virtual
+ENGINE_API virtual
+ENGINE_API virtual
+ENGINE_API virtual
+ENGINE_API virtual
+ENGINE_API virtual
+ENGINE_API virtual
+ENGINE_API virtual
+
+
+
+// local-to-world transform
+FORCEINLINE const FTransform& ActorToWorld() const
+{
+	return (RootComponent ? RootComponent->GetComponentTransform() ： FTransform::Identity);
+}

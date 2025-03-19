@@ -1,0 +1,247 @@
+C++标准模板库(Standard Template Library, STL)是一套功能强大的C++模板类和函数的集合。
+STL的设计基于泛型编程,意味使用模板可以编写出独立于任何特定数据类型的代码。
+
+STL分多个组件,包含容器(Containers)、迭代器(Iterators)、算法(Algorithms)、函数对象(Function Objects)和适配器(Adapters)
+
+向量(vector)、链表(list)、队列(queue)、栈(stack)、集合(set)、映射(map)
+
+适配器用于将一种容器或迭代器适配成另一种容器或迭代器。
+栈适配器(stack adapter)、队列适配器(queue adapter)、优先队列适配器(priority queue adapter)
+
+std::multiset	多重集合,允许多个元素具有相同的键
+std::multimap	多重映射,其中键是唯一的,但值可以重复,同时允许一个键映射到多个值
+
+无序容器：哈希表，支持快速的查找、插入、删除
+std::unordered_set
+std::unordered_multiset
+std::unordered_map
+std::unordered_multimap
+
+vector<T>	连续内存、随机访问、大小动态可变 容量不足时成倍增长
+push_back(const T& val)		在末尾添加元素
+pop_back()					删除末尾元素
+at(size_t pos)				返回指定位置的元素，带边界检查
+operator[]					返回指定位置的元素，不带边界检查
+front()						返回第一个元素
+back()						返回最后一个元素
+data()						返回指向底层数组的指针
+size()						返回当前元素数量
+capacity()					返回当前分配的容量
+reserve(size_t n)			预留至少 n 个元素的存储空间
+resize(size_t n)			将元素数量调整为 n
+clear()						清空所有元素
+insert(iterator pos, val)	在指定位置插入元素
+erase(iterator pos)			删除指定位置的元素
+begin() / end()				返回起始/结束迭代器
+
+
+std::list<T>	双向链表
+push_back(const T& val)		在链表末尾添加元素
+push_front(const T& val)	在链表头部添加元素
+pop_back()					删除链表末尾的元素
+pop_front()					删除链表头部的元素
+insert(iterator pos, val)	在指定位置插入元素
+erase(iterator pos)			删除指定位置的元素
+clear()						清空所有元素
+size()						返回链表中的元素数量
+empty()						检查链表是否为空
+front()						返回链表第一个元素
+back()						返回链表最后一个元素
+remove(const T& val)		删除所有等于指定值的元素
+sort()						对链表中的元素进行排序
+merge(list& other)			合并另一个已排序的链表
+reverse()					反转链表
+begin() / end()				返回链表的起始/结束迭代器
+
+std::forward_list<T>	单向链表
+
+
+std::deque<T>	双端队列
+deque()								默认构造函数，创建一个空的 deque 容器。
+deque(size_type n)					创建一个包含 n 个默认值元素的 deque 容器。
+deque(size_type n, const T& value)	创建一个包含 n 个值为 value 的 deque 容器。
+deque(initializer_list<T> il)		使用初始化列表 il 构造 deque 容器。
+operator=	赋值操作符，赋值给 deque 容器。
+assign()	用新值替换 deque 容器中的所有元素。
+at(size_type pos)			返回 pos 位置的元素，并进行范围检查。
+operator[](size_type pos)	返回 pos 位置的元素，不进行范围检查。
+front()						返回第一个元素的引用。
+back()						返回最后一个元素的引用。
+begin()						返回指向第一个元素的迭代器。
+end()						返回指向末尾元素后一位置的迭代器。
+rbegin()					返回指向最后一个元素的逆向迭代器。
+rend()						返回指向第一个元素之前位置的逆向迭代器。
+empty()						检查容器是否为空。
+size()						返回容器中的元素个数。
+max_size()					返回容器可容纳的最大元素个数。
+clear()						清除容器中的所有元素。
+insert(iterator pos, const T& value)	在 pos 位置插入 value 元素。
+erase(iterator pos)						移除 pos 位置的元素。
+push_back(const T& value)	在容器末尾添加 value 元素。
+pop_back()					移除容器末尾的元素。
+push_front(const T& value)	在容器前端添加 value 元素。
+pop_front()					移除容器前端的元素。
+resize(size_type count)		调整容器大小为 count，多出部分用默认值填充。
+swap(deque& other)			交换两个 deque 容器的内容。
+get_allocator()				返回一个用于构造双端队列的分配器对象的副本。
+
+
+std::stack<T>	基于其他容器(如deque或vector)实现
+push(): 在栈顶添加一个元素。
+pop(): 移除栈顶元素。
+top(): 返回栈顶元素的引用，但不移除它。
+empty(): 检查栈是否为空。
+size(): 返回栈中元素的数量。
+
+
+std::queue<T>	队列,允许一端添加、一端移除
+empty(): 检查队列是否为空。
+size(): 返回队列中的元素数量。
+front(): 返回队首元素的引用。
+back(): 返回队尾元素的引用。
+push(): 在队尾添加一个元素。
+pop(): 移除队首元素。
+
+
+std::priority_queue 默认是一个最大堆 也是一个容器适配器，提供对底层容器的堆操作。不提供迭代器不支持随机访问
+priority_queue<int> pq
+struct compare{
+	bool operator()(int a, int b){return a> b;}
+}
+priority_queue<int, vector<int>, compare> pq_min
+
+empty(): 检查队列是否为空。
+size(): 返回队列中的元素数量。
+top(): 返回队列顶部的元素（不删除它）。
+push(): 向队列添加一个元素。
+pop(): 移除队列顶部的元素。
+
+
+
+std::set<T> 提供高效元素查找、插入、删除。基于红黑树实现
+存储的元素类型 必须可以比较大小、被复制、赋值
+insert(元素): 插入一个元素。
+erase(元素): 删除一个元素。
+find(元素): 查找一个元素。
+size(): 返回容器中元素的数量。
+empty(): 检查容器是否为空。
+std::set<T>.find(20) != std::set<T>.end()
+
+
+std::unordered_set<T> 提供基于哈希表的容器,用于存储唯一的元素集合
+std::unordered_set<Key,Hash=std::hask<Key>,Pred=std::equal_to<Key>,Alloc=std::allocator<Key>>
+
+std::map<key_type,value_type>
+按照键的顺序自动排序的,键唯一,提供双向迭代器
+std::map<key_type,value_type, std::function<bool(const value_type&,const value_type&>>
+
+
+std::unordered_map<key_type, value_type>基于哈希表的 无序映射
+
+
+std::bitset<N> 提供高效的方式来存储和操作二进制数据
+operator[]：访问或修改某一位。
+set()：将某一位或所有位设置为 1。
+reset()：将某一位或所有位设置为 0。
+flip()：翻转某一位或所有位。
+count()：返回 1 的个数。
+size()：返回位数。
+test(pos)：检查某一位是否为 1。
+all()：检查是否所有位都为 1。
+any()：检查是否有任何一位为 1。
+none()：检查是否所有位都为 0。
+to_ulong()：将 std::bitset 转换为 unsigned long。
+to_ullong()：将 std::bitset 转换为 unsigned long long。
+to_string()：将 std::bitset 转换为字符串。
+
+
+
+std::sort(container.begin(), container.end(), compare_function)
+std::partial_sort(vec.begin(), vec.begin()+N, vec.end(), compare_function)
+std::stable_sort 稳定排序
+// 在容器中查找与给定值匹配的第一个元素
+std::find(container.begin(), container.end(), value)
+
+std::binary_search 对有序区间进行二分查找
+std::find_if 查找第一个满足特定条件的元素
+
+
+std::next_permutation 生成字典序的下一个排列
+std::vector<int> vec = {1,2,3}
+do{
+	for(int n : vec)
+		std::count<< n << " "
+	std::count << std::endl;
+}while( std::next_permutation(vec.begin(), vec.end()))
+
+std::prev_permutation 生成字典序的上一个排列
+
+std::set_union 两个有序集合的并集
+std::vector<int> result(10)
+auto it = std::set_union(vec1.begin(), vec1.end(), vec2.begin(), vec2.end(), result.begin())
+result.resize(it-result.begin());
+
+std::set_intersection 	计算交集
+std::set_difference 	计算差集
+
+
+
+
+
+
+<functional>头文件提供一组函数模板，这些模板允许我们使用函数对象作为参数传递给算法，或者作为算法的返回值
+函数对象是重载了operator()的对象
+
+
+std::function：一个通用的多态函数封装器。
+可以存储、调用和复制任何可调用对象。如函数、lambda表达式、函数对象
+
+std::bind：用于绑定函数的参数。
+允许我们创建一个可调用对象，它在调用时会将给定的参数绑定到一个函数或函数对象。
+int add(int a, int b){return a+b;}
+auto bound_add = std::bind(add, 5, std::placeholders::_1)
+bound_add(10)//输出15
+
+std::plus、std::minus、std::multiplies、std::divides、std::modulus：基本的算术操作。
+
+std::equal_to、std::not_equal_to、std::greater、std::less、std::greater_equal、std::less_equal：比较操作。
+std::sort(v.begin(),v.end(), std::less<int>())
+
+std::unary_negate、std::binary_negate：逻辑否定操作。
+Std::logical_and、std::logical_or、std::logical_not：逻辑操作。
+
+
+
+
+<type_traits> 提供一组编译时检测类型特性的工具
+基本类型判断
+	std::is_void<T>: 判断类型 T 是否为 void。
+	std::is_integral<T>: 判断类型 T 是否为整型。
+	std::is_floating_point<T>: 判断类型 T 是否为浮点型。
+	std::is_array<T>: 判断类型 T 是否为数组类型。
+	std::is_pointer<T>: 判断类型 T 是否为指针类型。
+	std::is_reference<T>: 判断类型 T 是否为引用类型。
+	std::is_const<T>: 判断类型 T 是否为 const 修饰。
+类型修饰
+	std::remove_const<T>: 移除类型 T 的 const 修饰。
+	std::remove_volatile<T>: 移除类型 T 的 volatile 修饰。
+	std::remove_cv<T>: 同时移除类型 T 的 const 和 volatile 修饰。
+	std::remove_reference<T>: 移除类型 T 的引用修饰。
+	std::remove_pointer<T>: 移除类型 T 的指针修饰。
+类型转换
+	std::add_const<T>: 为类型 T 添加 const 修饰。
+	std::add_volatile<T>: 为类型 T 添加 volatile 修饰。
+	std::add_cv<T>: 同时为类型 T 添加 const 和 volatile 修饰。
+	std::add_pointer<T>: 为类型 T 添加指针修饰。
+	std::add_lvalue_reference<T>: 为类型 T 添加左值引用修饰。
+	std::add_rvalue_reference<T>: 为类型 T 添加右值引用修饰。
+类型特性检测
+	std::is_same<T, U>: 判断类型 T 和 U 是否相同。
+	std::is_base_of<Base, Derived>: 判断类型 Base 是否为类型 Derived 的基类。
+	std::is_convertible<From, To>: 判断类型 From 是否能转换为类型 To。
+条件类型
+	std::conditional<Condition, T, F>: 如果 Condition 为 true，则类型为 T，否则为 F。
+	std::enable_if<Condition, T>: 如果 Condition 为 true，则类型为 T，否则此模板不参与重载决议。
+
+
+

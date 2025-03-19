@@ -1,0 +1,34 @@
+slua unlua
+
+userdata
+lightuserdata
+
+
+lua调用C函数
+注册C函数到lua中
+int xxxFunc(lua_state* l)  封装函数
+lua_pushCFunction()
+
+
+C调用lua函数
+lua_dofile()
+lua_doString()
+
+lua_pcall()
+lua_xpcall()
+
+
+元表元方法
+
+table的实现
+	两部分组成  数组和hashTable
+	链式结构
+
+TValue{
+	int type
+	union{
+		CFunction
+		void*
+		int 
+	}
+}

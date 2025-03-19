@@ -1,0 +1,67 @@
+声明与定义
+
+内存最小存储单位是比特bit,最小计量单位是字节byte, 1字节等于8比特
+
+C语言的编译过程分四个阶段：预处理、编译、汇编、链接。
+预处理阶段负责头文件包含、宏替换、条件编译、删除注释等
+编译阶段负责词法、语法、语义分析
+汇编阶段负责将代码转换为二进制目标文件
+链接阶段负责将多个二进制文件、库和启动代码合并成可执行文件。
+
+C语言中将内存分为5个区：栈区、堆区、全家(静态)区、常量区、代码区
+栈区(Stack)：由编译器自动分配释放。存放局部变量、形参、返回值。
+堆区(Heap):程序员分配内存和释放,调用malloc()和free()
+全局(静态)区：分未初始化、已初始化两个区域，存放全局变量和静态变量
+常量区：常量字符串等字面值
+代码区：存放程序的代码,函数
+
+头文件引用方式： <stdio.h>、"sss.h" 
+<>在标准库目录中搜索、""优先在当前目录中查找,用户设置的引用目录,最后在标准库目录中查找
+C++ <vector><cstdio> 可省略后缀
+
+可变参数 <stdarg.h>
+
+打印指针的内容：print("ptr value:%p", ptr)
+
+函数指针
+typedef int (*fun_ptr)(int,int) 声明了一个函数指针类型fun_ptr
+int max(int x,int y){return x>y?x:y;}
+int (*p)(int,int) = &max;// &可以省略
+
+共用体
+union [union tag]	//tag为该共用体类型名
+{
+	member definition;
+}[one or more union variables];
+
+
+位域
+struct 位域结构名
+{
+	type [member_name] : width;位域列表	
+};
+type只能为 int,unsigned int,singed int 三种
+width 所占位给数量，宽度小于等于type的位宽带
+printf("f1: %u\n",xxx.f1);
+
+
+typedef 仅限于位类型定义符合名称 #define 定义别名
+
+
+
+
+以下是一些常见的 C 标准库头文件及其功能简介：
+<stdio.h> 	标准输入输出库，包含 printf、scanf 等函数
+<stdlib.h> 	标准库函数，包含内存分配、程序控制等函数
+<string.h> 	字符串操作函数，如 strlen、strcpy 等
+<math.h> 	数学函数库，如 sin、cos、sqrt 等
+<time.h> 	时间和日期函数，如 time、strftime 等
+<ctype.h> 	字符处理函数，如 isalpha、isdigit 等
+<limits.h> 	定义各种类型的限制值，如 INT_MAX 等
+<float.h> 	定义浮点类型的限制值，如 FLT_MAX 等
+<assert.h> 	断言宏 assert，用于调试检查
+<errno.h> 	定义错误码变量 errno 及相关宏
+<stddef.h> 	定义通用类型和宏，如 size_t、NULL 等
+<signal.h> 	处理信号的函数和宏，如 signal 等
+<setjmp.h> 	提供非本地跳转功能的宏和函数
+<locale.h> 	地域化相关的函数和宏，如 setlocale 等

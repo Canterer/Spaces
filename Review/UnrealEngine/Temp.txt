@@ -1,0 +1,40 @@
+面试准备：
+设计模式
+	UE中的设计模式
+
+C++基础：
+对象内存布局、虚函数
+网络编程基础：UDP、TCP、网络复制(属性复制和RPC)
+
+Lua核心知识点：
+
+渲染管线：
+	HDRP
+动画：
+	Montage
+	Control Rig
+	重定向
+
+热更新：
+
+
+工具流：
+	UE的编辑器扩展
+	Python脚本
+
+
+内存管理：
+	new/delete 三种形式  为类定制new
+
+	引用技术GC、标记-清除法
+
+调试优化：
+	GDB：Linux下的一个强大的C/C++程序调试工具。
+		g++ -g -f fastsort fastsort.c++//-g将调试信息加入可执行文件
+		gdb fastsort//gdb打开可执行文件，进入调试界面
+
+	adb：Android Debug Bridge安卓调试桥,用来调试安卓程序。
+		adb install <apk文件路径> 安装程序到Android手机上。
+
+	蓝图断点：F9
+	Widget Reflector控件反射器

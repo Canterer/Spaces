@@ -1,0 +1,471 @@
+基础
+
+全局变量和全局静态变量的区别
+枚举与枚举类的区别
+类型限定符：用于定义变量或函数时改变其默认行为的关键字
+
+内存对齐 #program pack()
+
+初始化列表{}
+
+
+
+STL标准库
+模板元编程
+
+
+
+static被引入以告知编译器，将变量存储在程序的静态存储区而非栈上空间。
+
+全局变量和全局静态变量的区别：
+	全局变量是不显式用static修饰的全局变量，全局变量默认是有外部链接性的。作用域是整个工程，在一个文件内定义的全局变量，在另一个文件中，通过extern全局变量名的声明，就可以使用
+	全局静态变量是显示用static修饰的全局变量，作用域是声明此变量所在的文件，其他文件即使用extern声明也不能使用
+
+静态局部变量的特点：
+	在全局数据区(默认为0)分配内存，程序执行到该对象的声明初仅首次初始化。它始终驻留在全局数据区，直到程序运行结束。但其作用域为局部作用域。
+
+
+类型限定符：
+	const		定义常量，表示该变量的值不能被修改
+	volatile		可变的，可能会被程序以外的因素改变，如硬件或线程  禁止编辑器优化，每次都从内存去读
+	mutable 		修饰类的成员变量,即使所在的对象是const,也可改变其值
+	static			定义静态变量,表明该变量的作用域仅限当前文件或函数内
+	restrict 		修饰的指针是唯一一种访问它所指向的对象的方式
+	register		用于定义寄存器变量,表该变量被频繁使用,可以存放在CPU的寄存器中
+
+
+const int *p;
+int const *p;
+两者等同 一个指针 指向 const int
+int * const p;
+一个常指针 指向 int
+
+重载：在同一作用域中的某个函数或运算符指定多个定义,称为函数重载或运算符重载
+重载要求：同名函数,但参数不同  返回值不在考虑范围
+重载决策：调用一个重载函数或重载运算符时，编译器通过所使用的参数类型和定义中的参数比较，选用最合适的。
+
+子类定义父类同名函数,两者是不同作用域,此为覆盖  using BaseClass::Func 引入父类的同名函数(包含重载的)
+子类定义父类同名同参的虚函数，此为override重写
+
+重载运算符：
+	*指针运算符 &取地址运算符 ->类成员访问运算符
+	new delete new[] delete[] 空间申请与释放
+	()函数调用 ->成员访问 ,逗号 []下标
+不可重载运算符：
+	.点成员访问运算符 .*成员指针访问运算符 ->*成员指针访问运算符
+	::域运算符 sizeof长度运算符 ?:条件运算符 #预处理符号
+
+T operator++ () 前缀递增运算符	返回递增后的值 b=++a+5 a初值为5 最新值为6 b为11  
+T operator++ (int)	后缀递增运算符 返回原始值  b = a++ + 5  a初值为5 最新值为6 b为10
+
+
+命名空间
+	命名空间可以定义在几个不同的部分中，各个组成部分可分散在不同文件中。
+	如果命名空间中的某个组成部分需要请求定义在另一个文件中的名称，仍需要声明该名称。命名空间可以嵌套
+
+<new>标准头文件
+nothrow 运算符：用于在内存分配失败时不抛出异常
+std::bad_alloc
+new 运算符
+	pointer new (type [, initializer])
+
+int* myArray = new(std::nothrow) int[100000]
+
+<memory>标准头文件
+	std::shared_ptr、std::weak_ptr、std::unique_ptr
+	std::allocator 标准分配器，提供基本的内存分配和释放功能
+	std::allocator<int> alloc;
+	int* p = alloc.allocate(1)
+	alloc.destroy(p)//销毁对象
+	alloc.deallocate(p,1)//释放内存
+
+	std::align用于调整指针的对齐方式
+
+
+
+new operator 	初始化对象=申请内存空间+内存定位
+	type *p = new (type [, initializer])
+operator new	仅申请内存空间 相当于malloc
+	int *p = (int*) ::operator new(sizeof(int));
+	int *p = (int*) ::operator new int(5);
+placement new	定位new表达式在已分配的原始内存空间中初始化对象
+	new (address) type(initializer_list)
+	T* p = new (buffer) T
+	T* p = new (buffer) T(args)
+
+
+
+全局operator new函数只有三种
+void* operator new(std::size_t count);
+void* operator new(std::size_t count, const std::nothrow_t&) noexcept;
+void* operator new(std::size_t count, void* ptr) noexcept;
+全局operator delete函数
+void operator delete(void*);
+void operator delete(void*, std::size_t);
+注意 noexcept 异常
+
+
+对象内存布局、虚函数
+编辑器构建的函数：
+	默认构造函数、默认析构函数、
+	复制构造函数、复制赋值运算符
+	移动构造函数、移动赋值运算符
+
+特殊成员函数的限制
+	默认构造函数
+		未声明任何构造函数
+	两种复制操作时独立的
+		声明一种复制操作,不影响编辑器在需要时为你生成另一种复制操作
+	两种移动操作时不独立的
+		声明一种移动操作,会阻止编辑器生成另一种移动操作
+	显式声明了移动操作，编辑器就不会生成复制操作。(声明析构函数时，不阻止复制操作的生成,待废弃)
+	移动操作的生成条件：
+		未声明复制、移动操作、未声明任何析构函数。
+
+模板泛化copy构造函数、模板泛化copy赋值运算符 不影响编辑器默认生成函数。
+
+多态实现方式：
+
+虚函数与虚指针
+
+降低文件间的编译依赖：
+	接口与实现分离,使用Pointer to implementation
+	Handle classes和Interface classes解除了接口和实现之间的耦合关系，从而降低文件间的编译依赖。
+
+派生类的名称会遮掩基类的名称
+	using声明或转交函数(内部调用父类)
+
+派生类成员函数内直接使用Base::Func()调用父类,无需传递this指针。编辑器处理。
+
+void (MyClass::*ptrToMemFunc)() = &MyClass::memberFunction;
+(obj.*ptrToMemFunc)();//使用成员函数指针调用成员函数。
+
+std::function  std::bind
+
+std::bind(&MyClass::health, obj, _1)
+std::placeholders::_1占位符 表明实参的位置 其他位置的参数可理解为默认值或payload负载
+
+
+右值、左值
+右值引用、左值引用、万能引用
+	万能引用只会出现在模板推理的过程中
+
+枚举和枚举类
+枚举中定义名称 会与其他名字冲突  可以当int使用
+枚举类定义了底层表达类型(占用大小)
+
+switch case break
+
+
+显式接口和运行期多态
+	显式接口基于函数签名
+	运行期基于指针或引用的动态类型调用不同的函数,即运行期多态。
+隐式接口和编译期多态
+	有效表达式组成了隐式接口。
+	以不同的template参数具现化function templates会导致调用不同的函数,即编译器多态。
+
+	运行期多态基于虚函数、编译器多态基于template具现化和函数重载解析。
+静态类型、动态类型
+	只有指针和引用才具有动态类型。
+
+嵌套从属类型名称
+	嵌套于template class内的名称, xxClass::yy
+
+	两种例外： base class list、 member initialization list
+	base class list中只存在类型、member initialization list中可能是基类构造函数或变量名
+
+全特化和偏特化
+
+// 注意这里的类型列表可能多于 模板定义的类型个数
+template<typename T>//非特化的类型列表,若为空则为全特化
+struct A<int,T>{ //这里带<完整的类型列表>则为特化版本
+}
+
+temlate<class T>
+struct PTS {
+}
+
+template<class T, class U>
+struct PTS<T U::*>{
+}
+struct S {};
+PTS<int S::*> 模板类型为指向类成员变量的
+
+template<class T, int N = 4>
+struct TS{
+	
+}
+
+模板参数限制：
+	模板函数的成员初始值列表 可限制实参兼容类型 是否编译通过。
+std::
+std::false_type、std::true_type
+std::remove_reference<T>::type
+template<typename T, typename = typename std::enable_if<condition>::type>
+std::decay<T> 移除引用、cv修饰符
+std::is_base_of<T1,T2> T1是否为T2的基类
+std::is_constructible<T1, T2>::value  能否从T2对象构造一个T1对象 
+
+SFINAE技术使得std::enable_if得以运行。
+SFINAE(Substitution failure is not an error)匹配失败并不是一个错误
+
+template<typename T,
+				typename = typename std::enable_if<
+									!std::is_base_of<Person, std::decay_t<T>>::value
+									&& !std::is_integral<std::remove_reference_t<T>>::value
+													>::type>
+
+//不定参数调用
+template<typename F, typename Tuple = tuple<T...>, int... I>
+decltype(auto) apply_(F&& f, Tuple&& args, index_sequence<I...>)
+{
+    return std::forward<F>(f)(std::get<I>(std::forward<Tuple>(args))...);
+}
+
+template<typename F, typename Tuple = tuple<T...>,
+    typename Indices = make_index_sequence<tuple_size<Tuple>::value >>
+   decltype( auto)
+    apply(F&& f, Tuple&& args)
+{
+    return apply_(std::forward<F>(f), std::forward<Tuple>(args), Indices());
+}
+
+
+
+函数指针：
+typedef int (*fp)(int);
+fp myFunction(char* s);//返回函数指针 的函数myFunction
+
+int (*myFunction(char* s))(int);//等同上述函数
+
+显示转换：static_cast、dynamic_cast、const_cast、reinterpret_cast(重新解释)
+	static_cast: 仅在编译时检查的强制转换
+	dynamic_cast: 基于虚表中的typeinfo来判断
+	const_cast: 去掉变量的const
+	reinterpret_cast: 用于无关类型(如指针和int)之间的强制转换
+
+隐式类型转换
+TClass::(UType c)//单参数构造函数
+operator UType() const { //转换函数
+	
+}
+
+资源获取即初始化(RAII)
+函数对象、Lambda表达式、std::function、std::bind
+
+
+当类或结构包含某些 C++ 语言功能（如虚拟基类、虚拟函数、具有不同访问控制的成员）时，编译器可以自由选择布局。 该布局可能会基于正在执行的优化而有所不同，并且在许多情况下，该对象甚至可能不会占用连续内存区域。
+
+举例：
+	如果某个类具有虚拟函数，则该类的所有实例可能会共享单个虚拟函数表。 此类型非常有用，但它们也有限制。 由于布局未定义，因此无法将其传递到使用其他语言（例如 C）编写的程序，并且由于它们可能是非连续的，因此无法使用快速低级函数（例如 memcopy）对其进行可靠复制，或者通过网络对其进行序列化
+
+Trivial-layout普通布局、standard-layout标准布局、POD类型、文本类型
+std::is_trivial<T>、std::is_standard_layout<T>、std::is_pod<T>
+
+POD类型：
+	当某一类或结构同时为普通和标准布局时,即为POD类型。POD类型的内存布局是连续的。
+
+普通类型：
+	当C++中的类或结构具有编译器提供的或显示默认设置的特殊成员函数时，该类或结构为普通类型。
+
+	占用连续内存区域,可以具有不同访问说明符的成员。在C++中,编辑器可以自由选择对成员排序的方式。
+
+	可以在内存中复制此类对象，但不能从C程序中可靠地使用它们。
+
+	普通类型具有普通默认构造函数、普通复制构造函数、普通复制赋值运算符和普通析构函数。
+
+	当定义了带参构造函数, 必须定义默认构造函数TClass()=default;
+
+标准布局类型：
+	所有成员具有相同的访问控制、可以由C程序使用。
+	特征：
+		没有虚拟函数或虚基类
+		所有非静态数据成员具有相同的访问控制
+		类类型的所有非静态成员均为标准布局
+		所有基类都为标准布局
+		没有与第一个非静态数据成员类型相同的基类
+		满足以下条件之一：
+			没有含非静态数据成员的基类(仅定义函数)
+			最底层派生类中没有非静态数据成员,并且具有非静态数据成员的基类不超过一个
+
+标准 C++ 关键字
+
+alignas
+alignof
+and	(B)
+and_eq	(B)
+auto
+bitand	(B)
+bitor	(B)
+bool
+break
+case
+catch
+char
+char8_t	(C)
+char16_t
+char32_t
+class
+compl	(B)
+concept	(C)
+const
+const_cast
+consteval	(C)
+constexpr
+
+constinit	(C)
+continue
+co_await	(C)
+co_return	(C)
+co_yield	(C)
+decltype
+default
+delete
+do
+double
+dynamic_cast
+else
+enum
+explicit
+export	(C)
+extern
+false
+float
+for
+friend
+goto
+if
+inline
+
+int
+long
+mutable
+namespace
+new
+noexcept
+not	(B)
+not_eq	(B)
+nullptr
+operator
+or	(B)
+or_eq	(B)
+private
+protected
+public
+register
+reinterpret_cast
+requires	(C)
+return
+short
+signed
+sizeof
+static
+static_assert
+
+static_cast
+struct
+switch
+template
+this
+thread_local
+throw
+true
+try
+typedef
+typeid
+typename
+union
+unsigned
+using 声明
+using 指令
+virtual
+void
+volatile
+wchar_t
+while
+xor	(B)
+xor_eq	(B)
+
+
+(B) 当指定 /permissive- 或 /Za（禁用语言扩展）时，扩展运算符同义词是关键字。 当启用 Microsoft 扩展时，它们不是关键字。
+(C) 指定 /std:c++20 或更高版本（例如 /std:c++latest）时受支持。
+
+__declspec 修饰符中的 Microsoft 关键字
+	这些标识符是 __declspec 修饰符的扩展属性。 它们被视为该上下文中的关键字。
+
+
+
+
+
+
+add_const				从类型设置 const 类型。
+add_cv				从类型设置 const/volatile 类型。
+add_pointer				从类型设置指向类型的指针。
+add_reference				从类型设置对类型的引用。
+add_volatile				从类型设置 volatile 类型。
+aligned_storage				生成适当对齐的类型。
+alignment_of				获取类型对齐。
+common_type				为两种类型设置通用类型的实例。
+conditional				为两种类型设置通用类型的实例。
+
+decay				设置非引用、非常量或非可变类型或者设置指向类型的指针。
+enable_if				设置某种类型或未定义类型的实例。
+
+extent				获取数组维度。
+has_nothrow_assign				测试赋值时是否未引发该类型。
+has_nothrow_constructor				测试默认构造时是否未引发类型。
+has_nothrow_copy				测试复制构造时是否未引发类型。
+has_nothrow_copy_constructor				测试复制构造时是否未引发类型。
+has_nothrow_default_constructor				测试默认构造时是否未引发类型。
+has_trivial_assign				测试类型是否包含普通赋值。
+has_trivial_constructor				测试类型是否包含普通的默认构造函数。
+has_trivial_copy				测试类型是否包含普通的复制构造函数。
+has_trivial_copy_constructor				测试类型是否包含普通的复制构造函数。
+has_trivial_default_constructor				测试类型是否包含普通的默认构造函数。
+has_trivial_destructor				测试类型是否包含普通的析构函数。
+has_virtual_destructor				测试类型是否包含虚拟的析构函数。
+is_abstract				测试类型是否为抽象类。
+is_arithmetic				测试类型是否为算术型。
+is_array				测试类型是否为数组。
+is_base_of				测试一种类型是否是另一种类型的基类。
+is_class				测试类型是否为类。
+is_compound				测试类型是否为非标量类型。
+is_const				测试类型是否为常量类型。
+
+is_convertible				测试一种类型是否可转换为另一种类型。
+
+is_empty				测试类型是否为空类。
+is_enum				测试类型是否为枚举。
+is_floating_point				测试类型是否为浮点。
+is_function				测试类型是否为函数类型。
+is_fundamental				测试类型是否为 void 或算术型。
+is_integral				测试类型是否为整型。
+is_lvalue_reference				测试类型是否为 lvalue 引用。
+is_member_function_pointer				测试类型是否为指向成员函数的指针。
+is_member_object_pointer				测试类型是否为指向成员对象的指针。
+is_member_pointer				测试类型是否为指向成员的指针。
+is_object				测试类型是否为对象类型。
+is_pod				测试类型是否为 POD。
+is_pointer				测试类型是否为指针。
+is_polymorphic				测试类型是否包含虚拟函数。
+is_reference				测试类型是否为引用。
+is_rvalue_reference				测试类型是否为 rvalue 引用。
+is_same				确定两个类型是否相同。
+is_scalar				测试类型是否为标量类型。
+is_signed				测试类型是否为有符号的整数。
+is_standard_layout				测试类型是否为标准布局。
+is_union				测试类型是否为联合。
+is_unsigned				测试类型是否为无符号的整数。
+is_void				测试类型是否为 void。
+is_volatile				测试类型是否为可变型。
+make_signed				设置类型或大小大于或等于类型的有符号的最小类型。
+make_unsigned				设置类型或大小大于或等于类型的无符号的最小类型。
+rank				获取数组维度数。
+remove_all_extents				从数组类型设置非数组类型。
+remove_const				从类型设置非常量类型。
+remove_cv				从类型设置非常量/可变类型。
+remove_extent				从数组类型设置元素类型。
+remove_pointer				从指向类型的指针设置类型。
+remove_reference				从类型设置非引用类型。
+remove_volatile				从类型设置非可变类型。
+integral_constant				从类型和值设置整数常量。
