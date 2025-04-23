@@ -1,0 +1,72 @@
+
+Pak文件是一种数据存储和封装格式，将游戏内的资源和内容打包到一个单独的文件中。
+运行时挂载(Mount)一个Pak文件,通过加载(Load)其中的资源如StaticMesh uasset生成Actor到场景中
+
+HotPatcher插件进行资源打包，方便分析资源依赖打包到Pak文件中
+
+Pak文件的MountPoint为 ../../../LearnPak/
+	MountPoint为Pak中所有文件的公共路径，拼接上Pak中记录的文件路径，就可以得到挂载后的Pak中资源路径
+	../../../LearnPak 时相对打包后的[ProjectName]\Binaries\Win64\[ProjectName].exe为当前路径的
+
+挂载完Pak只是告诉UE的文件系统在某个路径上有一个资源。后续还得需要通过资源的路径加载对象
+
+TmpPak = new FPakFile(PakPlatformFIle, *path)
+TmpPak->GetMountPoint()
+UFlibPakHelper::MountPak(*path, 0, *MountPoint)
+TmpPak->FindPrunedFilesAtPath(FoundFileNames, *MountPoint, true, false, true);
+
+流程：
+	Cook资源
+		创建DLC文件夹、添加热更新资源
+		将DLC(Downloadable Content可下载内容)文件夹添加到要烘培的额外资产目录中
+		启动烘培按钮
+	打Pak包
+		cmd运行引擎目录下的UnrealPak.exe
+		unrealpak {pak目录} -create={cook文件的目录} 打pak包
+		unrealpak G:\dlc.pak -create=G:\UEDemo\PakTest\Saved\Cooked\Windows\PakTest\Content\DLC
+
+		查看pak包
+		unrealpak G:\dlc.pak -list
+
+	加载Pak包
+		创建C++类继承自Actor,在工程build.cs里面添加模块"PakFile"
+
+		OldPlatform = &FPlatformFileManager::Get().GetPlatformFile();
+		PakPlatform = MakeShareable(new FPlatformFile())
+		PakPlatform->Initialize(&FPlatformManager::Get().GetPlatformFile(), TEXT(""));
+
+		bool AMyAcotr::TestLoadPak(const FString& InPakFullPath)
+		{
+			TRefCountPtr<FPakFile> TmpPak = new FPakFile(PakPlatform.Get(), *PakFileFullPath, false);
+			FString OldPakMountPoint = TmpPak->GetMountPoint();
+			int32 ContentPos = OldPakMountPoint.Find("Content/");
+			FString NewMountPath = OldPakMountPoint.RightChop(ContentPos)
+			NewMountPath = ProjectPath + NewMountPath;
+			TmpPak->SetMountPoint(*NewMountPath);
+
+			if( PakPlatform->Mount(*PakFileFullPath, 1, *NewMountPath) )
+			{
+				TArray<Fstring> FoundFilenames;
+				TmpPak->FindFilesAtPath(FoundFilenames, *TmpPak->GetMountPoint(), true, false, false);
+				if( FoundFilenames.Num() > 0 )
+				{
+					if( GetWold()->WorldType == EWorldType::Game )
+					{
+						for(FString& Filename : FoundFilenames)
+						{
+							if(Filename.EndsWith(TEXT(".uasset")))
+							{
+								....
+							}
+						}
+					}
+				}
+			}
+		}
+
+		总结：
+			FPlatformFile 
+			依赖PakFileFullPath与FPlatformFile构建FPakFile对象
+			FPakFile:SetMountPoint()
+			FPlatformFile:Mount(*PakFileFullPath, 1, *NewMountPath)
+			FPlatFile:FindFilesAtPath(..., FPlatFile:GetMountPoint() )

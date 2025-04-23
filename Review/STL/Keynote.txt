@@ -17,6 +17,62 @@ std::unordered_multiset
 std::unordered_map
 std::unordered_multimap
 
+templcate<	class Key, 
+			class T, 
+			class Hash = std::hash<Key>,
+			class KeyEqual = std::equal_to<Key>,
+			class Allocator = std::allocator<std::pair<const Key,T>>
+		>
+class unordered_map;
+支持函数对象、全局函数
+
+可以定义独立的哈希函数对象
+struct MyHash{
+	std::size_t operator()(const MyType& a) const {
+		return std::hash<int>()(a.i);
+	}
+}
+在namespace std中添加内容通常是不推荐的，但为自定义类型特化std::hash是一个例外。因为这是标准库明确允许的操作。
+struct MyTpe{
+	int x;
+	std::string name;
+};
+namespace std{
+	template<>
+	struct hash<MyType>{
+		std::size_t operator()(const MyType& a) const{
+			std::size_t h1 = std::hash<int>()(a.x);
+			std::size_t h2 = std::hash<std::string>()(a.name);
+			return h1 ^ h2;
+		}
+	}
+}
+
+
+std::list<T>  双向链表
+std::deque<T> 双端队列  可以在前后插入的队列
+	
+template<class T, class Alloc = alloc, size_t BuffSize = 0>
+class deque{
+protected:
+	iterator start;
+	iterator finish;
+	map_pointer map;//数组起始位置   T**  二维数组
+	size_type map_size;//数组大小
+}
+deque::iterator 具有四个指针
+{
+	T *first,*last,*cur;//当前缓存段的 三个元素位置指针
+	map_pointer node;//缓存段在数组中的位置
+}
+数据存储在一个连续内存空间的缓存段  类似一维数组
+map存储 多个缓存段指针 的数组		 类似二维数组
+
+
+class queue
+
+
+
 vector<T>	连续内存、随机访问、大小动态可变 容量不足时成倍增长
 push_back(const T& val)		在末尾添加元素
 pop_back()					删除末尾元素
@@ -245,3 +301,7 @@ Std::logical_and、std::logical_or、std::logical_not：逻辑操作。
 
 
 
+#include<iostream>
+#include <iosmanip> //输出流控制
+#include <functional> //常用函数模板库 std::great<>
+#include <algorithm> //算法库

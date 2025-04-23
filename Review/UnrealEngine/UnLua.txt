@@ -1,0 +1,75 @@
+
+UObject 绑定Lua
+	静态绑定
+		为一个UObject对象关联一个Lua文件。该对象实例化时自动Require该文件。
+		实现方式：继承UnLuaInterface接口类实现GetModuleName方法。
+	动态绑定
+		在Lua中NewObject和SpawnActor时创建的对象可以动态绑定
+		调用上述方法时将Lua文件的路径传递
+
+		UnLua 会监听UObject创建事件。每个UObject创建的时候，会转发该接口
+		void FLuaContext::NotifyUObjectCreated(const UObjectBase* InObject, int32 Index)
+			tryToBindLua(Object);
+
+		UUnLuaManager::Bind接口是绑定Lua的实际入口，绑定过程主要做两件事
+			LuaFunction覆盖BlueprintEvent/RepNotifyFunc
+			创建对象实例,绑定LuaModule
+
+	Lua函数替换UFunction的原理：
+			依赖UE的反射机制。UFunction能反射调用C++ Native函数/蓝图脚本。是因为它的成员(FNativeFuncPtr)Func绑定了调用函数的函数指针。
+			对应C++Native函数，会生成辅助函数来支持反射调用。对于蓝图脚本，会绑定UObject::ProcessInternal,来辅助调用蓝图脚本的字节码。
+			UFunction的Func绑定到LuaFunction即Lua函数覆写BlueprintEvent/RepNotifyFunc的原理。
+
+
+	FLuaInvoker::execCallLua替换UFunction绑定的Func,让所有通过反射机制调用的UFunction都转发调用FLuaInvoker::exeCallLua,通过这个函数就可以转发调用我们自定义的LuaFunction。光函数还不行，需要UFunction反射数据。使用FFunctionDesc包了一层，将FFunctionDesc存到UFunction的Scirpt变量中。这个Scirpt本身是用来存储蓝图字节码的。
+
+
+UnLua使用类模板，抽象出一套通用的C++静态注册的宏定义。
+
+
+对于已经反射导出的类型。在Lua中第一次访问该类型的时候，会触发该类型的metatable注册。在注册该类型的lua metatable时，会将静态导入的类型中的函数、属性、以及lua_CFunction一起注册到metatable中。
+
+
+
+Lua在创建可被回收的对象时(String、table、userData、Function),都会自动将其串到一个global_State::allgc全局链表上。标记阶段从ROOT开始遍历对象引用，将能遍历的对象标记为活对象。
+Lua的ROOT包括注册表，G表,主线程。然而Lua运行时的对象,要么存在于注册表或G表 直接/间接引用中，要么存在于Lua执行栈上(执行栈被线程结构引用)。
+
+UE类似想法。标记指它以所有在ROOT上的UObject列表为根，去递过遍历所有这些根UObject的引用链。
+一个UObject对象向纳入UE GC机制管理，其需要被UPROPERTY标识修饰,或者实现UObject/FGCObject对象的派生接口AddReferencedObjects，手动加入到引用链。
+
+
+
+UObject对象实例在Lua中两种存在形式：
+	UObject对象没绑定Lua，其在Lua中是以userdata形式存在。
+	UObject对象绑定了Lua，其在Lua中是以table形式存在。
+
+UE的GC是自动进行的,所以在Lua中想正确访问UObject对象实例,确保它的C++ UObject对象指针没被GC。
+
+对于没绑定Lua的UObject对象实例,在Lua运行时对其进行访问时，在它入栈PushObject会将其关联的C++ UObject对象指针加入到FGCObject对象的ReferencedObject中，确保UE GC时不会对访问的UObject对象进行回收。
+
+UNLua对于绑定Lua的UObject对象实例，会将其进行绑定中，在创建Lua Instance实例后将关联的C++ UObject对象指针加入到FGCObject对象的ReferencedObjects
+
+
+UE中持有Lua对象 不被Lua GC
+	UnLua对于UE中访问的Lua对象,将其关联到Registry表，确保Lua GC时标记时通过引用链中找到该Lua对象,防止被回收。
+
+混合GC：
+	Lua GC与UE GC是两个独立的GC流程。
+
+	对于不绑定Lua的UObject对象实例,userdata绑定的metatable中会设置__gc元方法。在Lua侧回收该Userdata前，会触发__gc元方法,将该UObject对象指针从FGCObject对象的ReferencedObjects中移除。
+
+
+	对于绑定Lua的UObject对象实例,创建Lua Instance时将其关联到了Registry表,所以会一直被注册表引用。需要手动调用Destroy将其释放。
+
+
+问题：
+	Lua中持有UObject对象实例只占用一个UserData存储一个指针的大小,但指向的UE侧UObject对象可能很大,所以在Lua中创建临时的UObject对象,会出现Lua侧对象占用的内存不多，没有达到Lua GC自动触发的条件。可以定时手动触发Lua GC或 在UE GC触发前 触发Lua GC释放关联的UObject对象。
+
+
+
+
+	注册表与G表
+
+	注册表是全局唯一的表，用于C语音扩展与Lua交互时存储数据。不能被Lua代码直接访问,可以通过C代码进行操作。
+
+	G表是每个Lua_State结构体中的一个全局变量和虚拟机全局资源的集合。

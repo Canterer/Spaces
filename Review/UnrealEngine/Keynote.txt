@@ -27,6 +27,10 @@ FTransform
 旋转角度、欧拉角、四元数
 FRotator、FQuat
 
+Pitch俯仰角绕Y轴
+Yaw偏航角绕Z轴
+Roll翻滚角绕X轴
+
 计算顺序：ZXY
 万向锁：当Y轴角度为90度时, Z、X数值控制的是同一个
 原因是计算顺序。先计算Z轴，当计算Y轴的时候。z轴数据被当成X轴了。
@@ -51,12 +55,59 @@ FRotator、FQuat
 朝向A、轴向B 两个向量组成一个平面,垂直于该平面的即为轴。想象一个单位球面，每个朝向都是球面上一个点。朝向即从原点到该点的向量。
 
 
+Blueprintable 用于UCLASS宏 表示该C++类可被蓝图直接继承或创建实例。
+BlueprintType 用于UENUM或USTRUCT宏 表明枚举或结构体可以作为蓝图中的变量类型、函数参数返回值。
+
+
+简述UE5中的Actor和Pawn：
+Actor是UE5中游戏世界里的基本对象，可包含组件来实现功能，如场景中的静态物体等。Pawn是可被控制的Actor子类，常代表游戏中的角色，具有移动、交互等行为能力。
+
+解释一下UE5中的关卡（Level）：
+关卡是UE5游戏开发的核心单元，是游戏世界的具体体现，包含场景布局、游戏对象、光照设置等所有内容，开发者在关卡编辑器中构建游戏的各个场景和区域。
+
+
+
+材质与渲染类
+UE5中的Nanite是什么？：
+Nanite是UE5的虚拟微多边形几何体系统，可直接渲染海量细节的高分辨率3D模型，无需手动生成LOD，能自动根据视角和距离调整模型精度，大幅提升渲染效率和画面质量。
+
+简述UE5中的Lumen：
+Lumen是UE5的全动态全局光照解决方案，可实时计算场景中的间接光照，使光照效果更自然、真实，能对场景中的动态变化实时做出反应，如角色移动时阴影的实时变化。
+
+UE5中的材质节点有哪些常见类型？：
+有基础的颜色、法线、粗糙度等输入节点，用于控制材质的基本属性；还有如遮罩节点、混合节点等，用于实现材质的混合、遮罩效果；以及世界位置、时间等节点，可用于创建动态材质效果。
+
+蓝图与编程类+UE5中蓝图和C++的关系：
+蓝图是UE5的可视化脚本系统，无需编写代码即可实现游戏逻辑，适合快速原型制作和非程序员使用。C++是UE5的底层编程语言，用于实现高性能、复杂的功能，两者可相互交互，蓝图可调用C++函数，C++也可操作蓝图对象。
+
+在UE5蓝图中，如何实现一个简单的角色移动？：
+在蓝图中创建角色蓝图类，添加CharacterMovementComponent组件，通过设置其移动速度等属性，并在事件图表中使用“Add+Movement+Input”节点，绑定到输入事件，如按键输入，即可实现角色的移动。
+
+简述UE5中的自定义事件（Custom+Event）：
+自定义事件是在蓝图或C++中定义的可被其他函数或事件触发的函数，用于将复杂逻辑封装成可复用的模块，提高代码的可维护性和可读性，如创建一个“OnPlayerHit”自定义事件，在角色被击中时触发相关逻辑。
+
+动画类+UE5中的动画蓝图有什么作用？：
+动画蓝图用于管理和控制角色的动画状态机，可将动画资源与角色行为逻辑结合，通过状态机驱动角色在不同情况下播放不同动画，如行走、奔跑、跳跃等状态的切换。
+
+如何在UE5中实现动画融合（Animation+Blend）？：
+在动画蓝图中，使用动画融合节点，如“Blend+Space”，可根据输入参数（如角色移动速度）在不同动画之间进行平滑过渡和融合，使角色动画更自然。
+
+解释一下UE5中的骨骼动画（Skeletal+Animation）：骨骼动画是基于角色骨骼结构的动画方式，通过对骨骼的旋转、平移等变换来带动附着在骨骼上的网格体运动，从而实现角色的各种动作，如人物的肢体动作、面部表情等。
+
+资源管理类+UE5中的资源包（Asset+Package）是什么？：
+资源包是将UE5中的各种资源，如模型、材质、动画等打包成一个文件，便于资源的管理、共享和发布，可在项目中通过资源管理器进行加载和使用。
+
+如何在UE5中进行资源的优化？：
+可压缩纹理、减少模型面数、合理使用LOD等。对于纹理，可根据需要选择合适的压缩格式；对模型，使用Progressive+Meshes等技术简化模型；还可通过设置资源的加载优先级和异步加载，优化资源加载性能。
+
+UE5中的Streaming是什么？：
+Streaming即资源流送，是UE5在运行时动态加载和卸载资源的技术，可根据玩家的游戏进程和场景需求，按需加载和卸载资源，避免一次性加载大量资源导致内存溢出，提高游戏的流畅度和性能。
 
 DataRegister
 GameplayFeature 即插即用	
 热更新 PAK DLC
 
-打包模式目前有Release、Patch、DLC三种
+打包模式目前有Release、Patch(补丁)、DLC(可下载内容)三种
 
 将资源打成一个个PAK包
 
@@ -386,6 +437,7 @@ DECLARE_FUNCTION(execCallableFunc)
 }
 函数需要暴露到蓝图里，为此生成exec前缀的函数供 蓝图虚拟机调用
 
+C++调用蓝图
 void UMyClass::ImplementableFunc()//C++的实现
 {
 	ProcessEvent(FindFunctionChecked("ImplementableFunc", NULL)
@@ -399,9 +451,9 @@ void UMyClass::StaticRegisterNativeUMyClass()//注册函数名字和函数指针
 	FNativeFunctionRegistrar::RegisterFunction(UMyClass::StaticClass(),"CallableFunc", (Native)&UMyClass::execCallableFunc))
 	FNativeFunctionRegistrar::RegisterFunction(UMyClass::StaticClass(),"NativeFunc", (Native)&UMyClass::execNativeFunc))
 }
-UFunction* Z_COnstruct_UFunction_UMyClass_CallableFunc()
-UFunction* Z_COnstruct_UFunction_UMyClass_ImplementableFunc()
-UFunction* Z_COnstruct_UFunction_UMyClass_NativeFunc()
+UFunction* Z_Construct_UFunction_UMyClass_CallableFunc()
+UFunction* Z_Construct_UFunction_UMyClass_ImplementableFunc()
+UFunction* Z_Construct_UFunction_UMyClass_NativeFunc()
 
 UClass* Z_Construct_UClass_UMyClass()
 {
@@ -451,9 +503,42 @@ ETeleportType
 初始化流程：
 Init、Initialize
 
-静态对象初始化
 
+TaskGraph核心多线程框架
+	主要管理三个重要的线程：GameThread、RenderThread、RHIThread(图形API调用)
+	负责处理渲染硬件接口RHI命令的提交
+
+
+GameThread子线程
+AsyncTask(ENamedThreads::GameThread, [&]()
+{
+	
+})
+
+自定义线程继承FRunnable
+
+静态对象初始化
 FObjectInitializer::Get()
+
+Actor生命周期
+创建Actor两种方式：磁盘加载(无构造直接initComponents)
+				  动态加载SpawnActor、SpawnActorDeferred(延迟)
+
+动态加载
+	PostSpawnIniti
+	PostActorCreated
+	(FinishedSpawningActor延迟加载的步骤)
+	ExecuteConstruction
+	OnConstuction(蓝图Actor的组件创建、蓝图变量初始化)
+	PostActorConstruction
+
+PreInitializeComponents
+InitializeComponents
+PostInitializeComponents
+
+(OnActorSpawned只存在动态加载)BeginPlay(关卡开始后调用) ->EndPlay -> BeginDestory->FinishedDestory
+
+将任意属性设为Expose On Spawn即可延迟Actor的生成
 
 
 TWeakObjectPtr<T>
@@ -461,6 +546,9 @@ TObjectPtr<USceneComponent> AttachParent;
 TArray<TObjectPtr<USceneComponent>> AttachChildren;
 TEnumAsByte<enum EDetailMode> DetailMode;
 
+
+SubSystem:五种类型
+	UEngine、UEditorEngine、UGameInstance、UWolrd、ULocalPlay
 
 //UGameInstanceSubSystem框架
 UGameInstanceSubSystem : public USubSystem
@@ -472,7 +560,6 @@ USubSystem : public UObject
 {
 	FSubsystemCollectionBase* InternalOwningSubSystem;
 }
-
 
 	
 GameInstance:Init()
@@ -600,7 +687,7 @@ UUserWidgetBlueprint : public UBlueprint //仅重载一个虚函数
 UBaseWidgetBlueprint : public UUserWidgetBlueprint
 UWidgetBlueprint : public UBaseWidgetBlueprint
 
-WidgetBlueprint是UMG蓝图类
+UWidgetBlueprint是UMG蓝图类
 蓝图的本质是GeneratedClass类的编辑器。
 蓝图和GeneratedClass就好像修改器和存档的关系
 _C后缀就是GeneratedClass类

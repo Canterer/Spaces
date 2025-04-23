@@ -1,0 +1,80 @@
+#include <iostream>
+#include <algorithm>
+#include <list>
+#include <vector>
+#include <stack>
+#include <queue>
+#include <iomanip>
+#include <map>
+
+using namespace std;
+
+bool unaryFunc(int a, int b)
+{
+    return a < b;
+}
+
+int main() {
+	cout << "图灵工具真的棒！" << endl;
+	std::list<int> li = {23,24,45,56};
+	for (auto i = li.begin(); i != li.end(); ++i) {
+	    std::cout << *i << std::endl;
+	}
+	std::vector<int> vec;
+	for(int i = 0; i < 10; ++i)
+	{
+	    vec.push_back(i);
+	}
+	if(std::any_of(li.begin(),li.end(),[](int a){return a<10;}))
+	{
+	    std::cout<< "any_of true" << endl;
+	}else
+	{
+	    std::cout<< "any_of false" << endl;
+	}
+	bool bVec = std::all_of(vec.begin(),vec.end(),[](int a){return a>=0;});
+// 	std::cout.width(10);
+// 	std::cout.fill('2');
+// 	std::cout.setf(ios::left);
+	int i = 33;
+	std::cout<< i << endl;
+// 	std::cout.setf(ios::boolalpha);
+	std::cout<< bVec << endl;
+    // std::cout<< std::boolalpha << bVec << endl;
+	std::cout<< !bVec << endl;
+    
+	std::cout << "33" << endl;
+	std::cout << i << endl;
+	float f = 3.1415678;
+	double d = 3.14156789;
+// 	std::cout<< std::setprecision(12) << std::fixed << d << endl;
+	std::cout<< std::setprecision(12) << d << endl;
+	std::cout<< std::setprecision(12) << std::fixed << d << endl;
+	std::cout<< std::showpoint << f << endl;
+// 	std::cout.precision(4);
+// 	std::cout << std::left << std::setw(5) << std::setfill('4') << i << endl;
+// 	std::cout << i << endl;
+// 	std::cout<< f << endl;
+// 	std::cout<< std::showpoint << f << endl;
+    int m = 100;
+    std::cout << std::setbase(2) << std::showbase << 100 << endl;
+    
+    
+    std::map<string, int> myMap;
+    for(int i = 0; i < 10; ++i)
+    {
+        myMap.insert(std::pair<string, int>(std::to_string(i+5),i));
+        // myMap.push(std::to_string(i+100),i));
+    }
+    for(auto it = myMap.begin(); it != myMap.end(); ++it)
+    {
+        std::cout<< "key:" << it->first << " value:" << it->second << endl;
+    }
+    auto it = myMap.find(std::to_string(11));
+    auto end = myMap.end();
+    std::cout<< it->first << endl;
+    // std::cout << end->first << endl;
+    bool bFind = myMap.find("11") != myMap.end();
+    std::cout<< bFind << endl;
+	return 0;
+}

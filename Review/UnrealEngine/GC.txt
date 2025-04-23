@@ -1,0 +1,64 @@
+蓝图和C++使用统一的GC机制。
+
+
+
+内存管理机制：智能指针与标记清除
+
+继承UObject的对象  都是UE管理GC的，采用标记清除
+其他非U类对象(大量F类对象),采用智能指针进行管理
+
+
+构建自定义类使用 F开头
+智能指针声明时都是对象型数据,不能是指针类型
+​
+
+一般特殊的指针使用情况有两种：
+	1.U类持有普通类指针(智能指针)
+	2.普通类持有U类指针
+Tips：智能指针只能定义自定义类使用U类不可以使用
+
+共享指针三种使用方式：
+	TSharedPtr<FCustomClass> pCustomClass;//声明一个共享指针没有维护内存
+	TSharedPtr<FCustomClass> pCustomClass = MakeShareable(new FCustomClass);
+	TSharedPtr<FCustomClass> pCustomClass = new FCustomClass;
+	bool bCustomClassVaild = pCustomClass.Get() != nullptr ? true:false;
+两种释放：
+	pCustomClass.Reset();
+	pCustomClass = nullptr;
+
+共享指针转换为共享引用时,共享指针不一定安全所以需要借用ToSharedRef()
+	TSharedRef<FCustomClass> rCC = pCustomClass.ToSharedRef()
+
+
+SharedPtr = MakeShareable(new MyClass());//效率低 但即使对象构造为私有仍可以运行
+SharedPtr = MakeShared<FMyObjectType>();创建共享引用 隐式转换为共享指针。
+
+SharedPtr->AsShared()//继承自TSharedFromThis
+
+弱指针：仅缓存指向对象的指针,并不控制它的生命周期。
+循环引用：
+	两个类互相有对方的智能指针,实例化后相互赋值会导致引用计数永远无法为零。
+	TWeakPtr<FCustomClass> pWCC;构建空的弱指针
+	TWeakPtr<FCustomClass> pWCC1(pCustomClass);借助共享指针构建弱指针
+	TWeakPtr<FCustomClass> pWCC2(rCustomClass);借助共享引用构建弱指针
+
+TSharedPtr<FCustomClass> pCC(pWCC1.Pin());
+if(pCC.IsValid()) {...}
+
+共享引用,无法主动减少引用计数器,只能通过被动方法。例如生命周期终结，共享引用易主。
+
+TSharedFromThis:
+	继承TSharedFromThis,为类保存一个弱指针,从而通过指向原始类对象的TSharedPtr获得普通指针。
+
+
+资源加载的方式：
+LoadObject 针对StaticLoadObject
+LoadClass 底层调用 LoadObject<UClass>
+
+StreamableManager::RequestAsyncLoad(path, delegate)
+AssetManager::Get().GetStreamableManager()
+DataAsset
+
+gameplay的看法
+playerControl Character 的关系
+

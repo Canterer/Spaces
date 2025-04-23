@@ -1,0 +1,183 @@
+#include<algorithm>
+using namespace std;
+
+
+实现一个模板字典
+#include <unordered_map>
+//复杂结构体当作key  待测试实现
+特例化std::hash<MyStruct> 返回哈希值
+
+std::queue 队列默认采用std::deque 实现  
+切换底层容器为std::list
+std::queue<int,std::list<int>>
+
+std::tuple<Type1,Type2,Type3>
+std::make_tuple(value1,value2,value3);
+
+std::list<T>双向链表容器
+std::advance(myList.begin(), 5)//移动到第6个位置 注意其不检查越界
+std::list<T>.erase(it)移除
+
+std::deque<T> 双端队列
+std::forward_list<T> 单向顺序列表
+
+
+输入输出处理：
+多组输入数据，每组数据包含两个正整数。 若输入为0 0则结束输入
+while(cin >> a >> b && (a != 0 || b!= 0))
+
+多组输入数据，每行表示一组输入数据。每行不定有n个整数，空格隔开。
+while( cin >> m )
+	res += m;
+	if( getchar() == '\n' )//单组数据结束
+
+多行测试用例，每个测试用例一行，每行数据通过,隔开。
+输入：
+	a,b,cc
+	f,ddd
+
+#include<sstream>
+string t,tt;
+while( getline(cin,t) )//获取单行用例数据
+istringstream iss(t);
+while( getline(iss, tt, ',') )通过','分隔数据。
+
+
+vector内存操作
+	vec.reserve(100)//预留100个元素的容量
+	vec.clear()//清除数据但不释放内存
+	vec.shrink_to_fit()//减少容量以匹配内存大小
+
+vector.push_back 单个参数 通过拷贝构造或拷贝赋值
+vector.emplace_back  多个参数 用于构造数据
+		避免构建临时变量然后再拷贝或移动
+
+
+1. vector<T> v; //T表示数据的类型，可以是int类型，也可以是string对象。
+2. vector(v.begin(), v,end());  //将v[begin().end())区间(前闭后开)中的元素拷贝给本身。
+3. vector(n, elem);  //构造函数将n个elem拷贝给本身。
+4. vector(const vector &vec);  //拷贝构造函数。
+5. vector& operator=(const vector &vec);  //重载=操作符。
+6. assign(begin,end);  //将[begin,end)区间中的数据拷贝赋值给本身。
+7. assign(n,elem);  //将n个elem拷贝赋值给本身。
+8. empty(); //判断容器是否为空。
+9. capacity(); //容器的容量。
+10. size();  //返回容器中元素的个数。
+11. resize(int num);  //重新指定容器的长度为num，若容器变长，则以默认值填充新位置。
+                      //如果容器变短，则末尾超出容器长度的元素被删除。
+12. resize(int num, elem); //重新指定容器的长度为num，若容器变成，则以elem值填充新位置。
+                           //如果容器变短，则末尾超出容器长度的元素被删除。
+13. push_back(ele);  //尾部插入元素ele。
+14. pop_back();  //删除最后一个元素。
+15. insert(const_iterator pos, ele); //迭代器指向位置pos插入元素ele。
+16. insert(const_iterator pos, int count ele); //迭代器指向位置pos插入count个元素。
+17. erase(const_iterator pos); //删除迭代器指向的元素。
+18. erase(cons_titerator start, const_iterator end);  //删除迭代器从start到end之间的元素。
+19. clear();  //删除容器中所有元素。   
+20. at(int idx);   ///返回索引为idx所指的数据。
+21. operator[];  //返回索引idx所指的数据。
+22. front();  //返回容器中第一个数据元素。
+23. back();   //返回容器中最后一个数据元素。
+24. swap(vec);  //将vec与本身的元素互换。
+25. reserve(int len); //容器预留len个元素长度，预留位置不初始化，元素不可访问。
+
+
+
+
+
+1.多数问题   (摩尔投票)
+	数组nums中 存在超过一半的树即为多数。
+	字典统计法(空间复杂度不满足O(1))
+
+2.轮转数组
+
+class Solution {
+public:
+    void rotate(vector<int>& nums, int k) {
+        int len = nums.size();
+        int last = 0;
+        int next = (last+k)%len;
+        int cache = 0;
+        while(next!=0)
+        {
+            cache = nums[next];
+            last = (next-k)%len;
+            nums[next] = cache;
+        }
+    }
+};
+
+
+3. 跳跃2
+class Solution {
+public:
+    int jump(vector<int>& nums) {
+        int len = nums.size();
+        int index = len-1;
+        int min = 0;
+        vector<int> minVec(len,len-1);
+        for(int i = len-1; i >= 0; --i)
+        {
+            if(nums[i] >= len-1 - i)
+            {
+                minVec[i] = 1;
+            }
+            int min = len;
+            for(int j = nums[i];j>0;--j)
+            {
+                int index = len-1-j;
+                if(index<len)
+                {
+                    if(min > minVec[index])
+                        min = minVec[index];
+                }
+            }
+            minVec[i] = min + 1;
+        }
+        return minVec[0];
+    }
+};
+
+
+表达式求值：
+https://www.nowcoder.com/practice/c215ba61c8b1443b996351df929dc4d4?tpId=308&tqId=1076787&sourceUrl=%2Fexam%2Foj
+
+数值范围在 -100到100的  整型范围
+支持 加减乘三种运算和括号
+
+
+整数划分
+n=n1+n2+n3+nk;
+1<=n1<=n2<=nk;
+
+n=1 => {1}
+n=2 => {2},{1,1}
+n=3 => {3},{1,2},{1,1,1}
+n=4 => {4},{1,3},{2,2},{1,1,2},{1,1,1,1}
+n=5 => {5},{1,4},{2,3},{1,1,3},{1,2,2},{1,1,1,2},{1,1,1,1}
+n=6 => {6},{1,5},{2,4},{3,3},{1,1,4},{1,2,3},{2,2,2},{1,1,1,3},{1,1,2,2},{1,1,1,1,2},{1,1,1,1,1,1}
+
+{5},{1,4},{2,3},{1,1,3}
+{6},{1,5},{2,4},{1,1,4}
+
+
+v[n][m] 和为n,最大数为m
+v[n][1] = 1
+
+int getValue(int n,int m)
+{
+	if(m==1) return 1;
+	if(n>m)
+	{
+		for()
+	}
+
+	int count = 0
+	for(i=m;i>=1;--i)
+	{
+		//count += v[n-m][m];//最后一个数为m
+		count += getValue(n-m,m);
+	}
+	v[n][m] = count;
+	return count;	
+}

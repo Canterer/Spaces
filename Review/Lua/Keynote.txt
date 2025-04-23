@@ -1,7 +1,9 @@
-slua unlua
+slua-unreal unlua
 
 userdata
 lightuserdata
+
+
 
 
 lua调用C函数
@@ -19,10 +21,69 @@ lua_xpcall()
 
 
 元表元方法
+setmetatable(table, metatable)
+getmetatable(object)
+
+string字符串共享同一个元表
+
+getmetatable(object)
+若object有元表,且该元表有__metatable字段,则返回该字段。否则返回该元表
+注意元表设置了__metatable字段。可以保护元表。setmetatable会引发错误。
+
+__tostring 调用tostring方法
+
+~=、a>b、a>=b没有对应元方法。
+a~=b 转换为 not( a==b )
+a>b  转换为 b<a
+a>=b 转换为 b<=a
+
+__index 访问不存在的字段。  rawget不调用元表
+__newindex 给不存在的key字段赋值。 rawset(table, key, value)不调用元表
 
 table的实现
-	两部分组成  数组和hashTable
-	链式结构
+typedef struct Node{
+	TValue i_val;
+	TKey i_key;
+}Node;
+typedef union TKey {
+		struct{
+			TValue Fields;
+			struct Node *next;
+		}nk;
+		TValue tvk;
+}Tkey;
+
+TKey 可能存储 一个TValue  或 TValue+NextPtr
+NextPtr用于冲突的时候 指向冲突的结点
+
+
+typedef struct Table{
+	CommonHeader;
+	lu_byte flags;
+	struct Table *metatable;
+	//数组部分
+	TValue *array;
+	int sizearray;
+	//hase部分
+	lu_byte lsizenode;//log2  值为n代表2的n次幂
+	Node *node;
+	Node *lastfree;
+	GCOjbect *gclist;
+}Table;
+
+
+lastfree用于指明未使用的结点 供哈希位置冲突的结点临时占用
+若占用的位置 遇到其正主(占用地址为新增数据的hash地址)  占用者腾位置。 占用者通过lastfree占用其他的(注意修正冲突链表)
+
+两部分组成  数组和hashTable
+
+插入新键值对的时候可能触发rehash操作(开销较大)
+rehash会统计数组部分 并将插入到哈希中的数值 移入数组部分
+
+构建时,可以预分配数组大小。
+local t = {nil,nil,nil}
+lua_createtable(lua_State*L, int narr, int nrec)
+
 
 TValue{
 	int type
@@ -32,3 +93,120 @@ TValue{
 		int 
 	}
 }
+
+
+
+
+性能优化
+	slua中 调用函数的时候会将元表的函数 设置为当前表的值  提供寻址速度
+
+	构造C++类对象的时候 提供元表 缩小内存
+
+	配置表中 大量相似结构的数据  进行相同数据 转换为同一个元表
+			针对不同查询方式  重构不同的表
+
+
+多个lua_state 共享一个global_state
+global_state.l_register即为注册表，内含多个字段
+
+注册表(registry)是张只能被代码访问的全局表。一张不同的表
+	存放lua的全局变量
+	存放c编写的扩充函数
+
+	预定义一个key/value
+		LUA_RIDX_MAINTHREAD 指向主线程
+		LUA_RIDX_GLOBALS: 存储全局变量
+		LUA_LOADED_TABLE: 存储模块(系统默认加载的模块、用户require的模块)
+
+_G或_ENV 访问LUA_RIDX_GLOBALS表
+_G.package.loaded 访问LUA_LOADED_TABLE表
+
+伪索引
+	注册表由伪索引 LUA_REGISTRYINDEX(-1001000)来定位。伪索引就像是栈中的一个索引,但关联的值不在栈中
+
+static TValue *index2addr(lua_State *L, int idx)统一通过索引获取值
+	索引为正数  在栈上  L->ci->func + idx
+	索引为负数  且大于LUA_REGISTRYINDEX  通过栈顶L->top+idx获取
+	索引为负数  且等于LUA_REGISTRYINDEX  访问全局表 &G(L)->l_registry
+	索引为负数  且小于LUA_REGISTRYINDEX  访问upvalues
+		idx = LUA_REGISTRYINDEX - idx;
+		CClosure *func = clCvalue(L->ci->func);
+		return &func->upvalue[idex];
+
+
+
+
+
+
+slua-unreal作为unreal引擎的插件，通过unreal自带蓝图接口的反射能力，结合libclang静态c++代码分析，自动化导出蓝图接口和静态c++接口，提供给lua语言，使得可以通过lua语言开发unreal游戏业务逻辑，方便游戏高效迭代开发，上线热更新，同时支持lua到c++双向，lua到蓝图双向调用，使用lua语言完美替代unreal的c++开发方式，修改业务逻辑不需要等待c++编译，大大提升开发速度。
+
+
+slua-unreal 有什么功能
+    通过蓝图反射机制，自动导出unreal 4的蓝图api到lua接口
+    支持以lua function作为蓝图事件的回调函数
+    支持普通c++函数和类 通过静态代码生成或者泛型代码展开导出到lua接口，同时支持与蓝图接口交互
+    完整支持了unreal4的枚举，并导出了全部枚举值到lua
+    支持FVector等非蓝图类，同时支持操作符重载
+    支持扩展方法，将某些未标记为蓝图方法的函数，手动添加到蓝图类中，例如UUserWidget的GetWidgetFromName方法。
+    支持从蓝图中调入lua，并接收lua返回值，支持任意参数类型和任意参数个数。
+    支持蓝图out标记参数，支持c++非const引用作为out类型参数返回。
+
+
+
+lua强引用某个对象产生内存泄露？
+
+蓝图编写construction脚本，可以写程序化生成逻辑并且在编辑器预览
+	smart spline 藤曼绳索制作
+	river tool 河流附着地形
+
+
+slua使用了大量指针、检查少、性能好
+unlua做了很多检查、性能稍微差一点。但安全、异常使用不容易崩
+
+
+通过蓝图反射机制，自动导出unreal的蓝图api到lua接口(UClass->FindFunctionByName)
+支持rpc函数调用(LuaNet)
+支持复写任何蓝图函数，包括rpc函数，用lua函数替代(ULuaOverrider)
+支持以lua function作为蓝图事件的回调函数(LuaDelegate)
+支持普通c++函数和类通过静态代码生成或者泛型代码展开导出到lua接口，同时支持与蓝图接口交互(DefLuaClass)
+完整支持了unreal4的枚举(LuaObject::pushEnum)，并导出了全部枚举值到lua (LuaEnums)
+支持FVector等非蓝图类，同时支持操作符重载(LuaWrapper)
+支持扩展方法，将某些未标记为蓝图方法的函数，手动添加到蓝图类中，例如UUserWidget的GetWidgetFromName方法 （LuaObject::addExtensionMethod）。
+支持从蓝图中调入lua，并接收lua返回值，支持任意参数类型和任意参数个数(ULuaBlueprintLibrary::CallToLua, LuaVar::wrapReturn包装返回值 )。
+支持蓝图out标记参数，支持c++非const引用作为out类型参数返回。(LuaFunctionAccelerator的outPropsPusher)
+自动检查脚本死循环，当代码运行超时自动报错 (FDeadLoopCheck)。
+支持多luastate实例，用于创建不同运行环境的luastate (stateMapFromIndex)。
+lua代码支持cpu profile
+lua 多线程 GC
+性能分析工具，支持连接真机分析
+
+
+
+可变参数传递
+class Foo {
+	public:
+		void bar(const char*, int){}
+		FString getStr(){}
+}
+DefLuaClass(Foo)
+	DefLuaMethod(bar, &Foo::bar)
+	DefLuaMethod(getStr, &Foo::getStr)
+EndDef()
+
+slua 已经预先将常用的Actor，Charactor，Pawn，UserWidget，Controller, PlayerController, GameModeBase, HUD 都做了类似支持
+LuaActor
+	LuaFilePath
+	LuaStateName
+
+
+LuaPanda 腾讯开源的Lua代码工具
+	为 Lua 开发者提供以下核心功能：
+
+    代码补全（Code Completion）
+    代码片段（Snippet Completion）
+    定义跳转（Definition）
+    生成注释（Comment Generation）
+    类型推断（Limited Type Inference）
+    代码格式化（Formatting）：依赖 lua-fmt
+    代码诊断（Linting）：依赖 luacheck
+    调试器（Debugger）
