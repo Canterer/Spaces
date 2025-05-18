@@ -1,0 +1,11 @@
+
+UGameInstance::CreateGameModeForURL(FURL InURL, UWorld* InWorld)
+有多种获取方式 按优先级获取
+通过当前World->GetWorldSettings()->DefaultGameMode
+若获取不到 则参数从InURL中获取GameMode parameter
+若获取不到 从InURL.Map得到地图信息 再通过UGameMapsSettings::GetGameModeForMapName获取
+UGameMapsSettings::GetGlobalDefaultGameMode()
+World->SpawnActor<AGameModeBase>(GameClass, SpawnInfo);
+
+
+

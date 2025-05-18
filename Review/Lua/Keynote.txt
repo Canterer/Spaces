@@ -24,7 +24,8 @@ lua_xpcall()
 setmetatable(table, metatable)
 getmetatable(object)
 
-string字符串共享同一个元表
+string字符串共享同一个元表 
+长字符串是一份实例 短字符串是多份副本
 
 getmetatable(object)
 若object有元表,且该元表有__metatable字段,则返回该字段。否则返回该元表

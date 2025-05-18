@@ -1,0 +1,226 @@
+
+ASCharacter : public ACharacter
+	
+ASCharacter::ASCharacter()
+{
+	PrimaryActorTick.bCanEverTick = true;
+}
+void ASCharacter::BeginPlay()
+{ Super::BeginPlay(); }
+void ASCharacter::Tick(float DeltaTime)
+{ Super::Tick(DeltaTime); }
+void ASCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
+{
+	Super::SetupPlayerInputComponent(PlayerInputComponent);
+}
+
+
+protected:
+	USpringArmComponent* SpringArmComp;
+	UCameraComponent* CameraComp;
+构造函数中
+	SprintArmComp = CreateDefaultSubobject<USprintArmComponent>("MySprintArm");
+	CameraComp = CreateDefaultSubobject<UCameraComponent>("MyCamera");
+
+未Attach的组件 位于世界原点且不随角色移动。
+	SprintArmComp->SetupAttachment(RootComponent);
+	CameraComp->SetupAttachment(SprintArmComp);
+且组件在蓝图派生类中无法查看detail面板
+	添加UPROPERTY宏修饰
+	UPROPERTY(VisibleAnywhere)
+	USprintArmComponent* SpringArmComp
+
+添加输入绑定
+	UInputComponent::BindAction() 绑定动作
+	UInputComponent::BindAxis() 绑定轴 
+	PlayerInputComponent->BindAxis("CustomMoveForward", this, &ASCharacter::MoveForward);
+	//自定义轴名 CustomMoveForward
+protected:
+	void MoveForward(float Value)
+	{
+		//调用移动通用接口
+		AddMovementInput(FVector WorldDirection, float ScaleValue, bool bForce);
+		//获取Actor前进方向
+		GetActorForwardVector()
+	}
+
+绑定输入映射
+	为自定义轴绑定 输入映射
+		键盘W + Scale设置为1 代表前进
+		键盘S + Scale设置为-1 代表后退
+
+转向控制
+	直接使用  APawn::AddControllerYawInput
+		底层其实将数据转给 APlayerController::AddYawInput(val);
+
+设置SkeletalMesh
+	调整高度与朝向 设置动画蓝图
+
+优化移动控制
+	MoveForward -> AddMovementInput(GetActorForwardVector(), value)
+	MoveRight -> AddMovementInput(GetActorRightVector(), value)
+	Turn -> &APawn::AddControllerYawInput
+	Lookup -> &APawn::AddControllerPitchInput
+
+PlayerController 负责推送输入数据 给Posses的Pawn或Character或Vehicle
+
+Pawn属性
+	UseControllerRotationPitch
+	UseControllerRotationYaw
+SprintArmComponent
+	UsePawnControllerRotation
+SCharacter
+	GetCharacterMovement()->bOrientRotationToMovement = true;//Orient朝向
+
+根据摄像机的方向移动
+	FRotator ControlRot = GetControlRotation();
+	ControlRot.Pitch = 0.0f;
+	ControlRot.Roll = 0.0f;
+	FVector RightVector = UKismetMathLibrary.GetRightVector(ControlRot);
+	AddMovementInput(ControlRot.Vector(), Value);
+	AddMovementInput(RightVector, Value);
+
+
+ASMagicProjectile : public AActor
+	UPROPERTY(VisibleAnywhere)
+	USphereComponent* SphereComp;
+	UPROPERTY(VisibleAnywhere)
+	UProjectileMovementComponent* MovementComp;
+	UPROPERTY(VisibleAnywhere)
+	UParticleSystemComponent* EffectComp;
+
+ASMagicProjectile::ASMagicProjectile()
+{
+	MovementComp = CreateDefaultSubobject<UProjectileMovementComponent>("MyMovement");
+	MovementComp->InitialSpeed = 1000.0f;
+	MovementComp->bRotationFollowsVelocity = true;
+	MovementComp->bInitialVelocityInLocalSpace = true;
+}
+
+绑定射击输入
+	PlayerInputComponent->BindAction("PrimaryAttack", IE_Pressed, this, &ASCharacter::PrimaryAttack)
+
+ASCharacter
+Protected:
+	UPROPERTY(EditAnywhere)
+	TSubClassOf<AActor> ProjectileClass;
+Void ASCharacter::PrimaryAttack()
+{
+	FTransform SpawnTM = FTransform(GetControlRotation(),GetActorLocation());
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.SpawnCollisionHandingOverride = ESpawnActorCollisionHandingMethod::AlwaysSpawn;
+	GetWorld()->SpawnActor<AActor>(ProjectitleClass, SpawnTM, SpawnParams);
+}
+
+更新魔法弹生成位置
+	FVector HandLocation = GetMesh()->GetSocketLocation("Muzzle_01");
+	FTransform SpawnTM = FTransform(GetControlRotation(),HandLocation);
+
+碰撞
+	Cube墙体 Generate Overlap Events
+	设置Collision Presets为 Custom
+	设置Collision Enabled类型  Query Physics (同时或忽略一项)
+	设置ObjectType 代表自身的类型 WorldStatic、WorldDynamic、Pawn、PhysicsBody、Vehicle、Destructble
+
+	CollisionResponses 分两种 TraceResponses、ObjectResponse
+	TraceResponses 分两种 Visibility、Camera
+
+	DrawDebugSphere 用于测试碰撞点
+
+	SphereComponent->SetCollisionObjectType(ECC_WorldDynamic)
+	SphereComponent->SetCollisionResponsesToAllChannels(ECR_Ignore);
+	SphereComponent->SetCollisionResponsesToChannel(ECC_Pawn,ECR_Overlap);
+	SphereComponent->SetCollisionProfileName("Projectile")
+
+	Collision Channels 碰撞通道
+	Object Types 对象类型
+	Reactions: Block、Overlap、Ignore
+	Volume 具有多种类型的体积，其中BlockingVolume用作空气墙
+
+	CameraBlockingVolume摄像机阻挡体积、KillZVolume销毁Z体积、Pain-CausingVolume伤害施加体积、PhysicsVolume物理体积。
+
+StaticMesh
+	Physics
+		SimulatePhysics 开启物理模拟
+
+RadialForceComponent
+	FireImpulse 模拟冲击力作用
+	
+
+SGameplayInterface.h
+UINTERFACE(MinimalAPI)
+class USGameplayInterface : public UInterface
+{
+	GENERATED_BODY()
+};
+
+class ACTIONROGUELIKE_API ISGameplayInterface
+{
+	GENERATED_BODY()
+public:
+	UFUNCTION(BlueprintNativeEvent)
+	void Interact(APawn* InstigatorPawn);
+}
+
+UClass()
+class ACTIONROGUELIKE_API USItemChest ： public AActor, public ISGameplayInterface
+{
+	GNERATED_BODY()
+
+	void Interact_Implementation(APawn* InstigatorPawn);
+}
+
+USInteractionComponent : public UActorComponent
+{
+public:
+	void PrimaryInteract(){
+		FHitResult Hit;
+		FCollisionObjectQueryParams ObjectQueryParams;
+		ObjectQueryParams.AddObjectTypesToQuery(ECC_WorldDynamic);
+		AActor* MyOwner = GetOwner();
+		FVector End;
+		FVector EyeLocation;
+		FRotator EyeRotation;
+		MyOwner->GetActorEyesViewPoint(EyeLocation,EyeRotation);
+		FVector End = EyeLocation + (EyeRotation.Vector()*1000);
+		GetWorld()->LineTraceSingleByObjectType(Hit,EyeLocation,End,ObjectQueryParams);
+		FCollisionShape Shape;
+		Shape.SetSphere(30.0f);
+		// 球形扫描GetWorld()->SweepMultiByObjectType(TArray<FHitResult> Hits,EyeLocation,End,FQuat::Identity,ObjectQueryParams, Shape)
+		AActor* HitActor = Hit.GetActor();
+		if(HitActor)
+		{
+			if(HitActor->Implements<USGameplayInterface>())
+			{
+				APawn* MyPawn = Cast<APawn>(MyOwner);
+				ISGameplayInterface::Execute_Interact(HitActor,)
+			}
+		}
+		//添加调试显示 include "DrawDebugHelpers.h"
+		DrawDebugLine(GetWorld(), EyeLocation,End,FColor::Red,false,2.0f,0,2.0f);
+		DrawDebugSphere(GetWorld(), Hit.ImpactPoint, Radius, 32, FColor::Red,false,2.0f,0,2.0f);
+	}
+}
+
+播放蒙太奇
+	UPROPERTY(EditAnywhere)
+	UAnimMontage* AttackAnim;
+
+	PlayAnimMontage(AttackAnim);
+
+设计计时器
+	GetWorldTimerManager().SetTimer(FTimerHandle Handle,this,&ASCharacter::PrimaryAttack_TimeElapsed,float Rate,bool bLoop,float FirstDelay);
+
+
+Blueprint Kickstart & Essentials
+	https://learn.unrealengine.com/course/3537777
+	https://learn.unrealengine.com/course/2436619
+Blueprint Best Practices
+	https://docs.unrealengine.com/en-US/Engine/Blueprints/BestPractices/index.html
+
+绑定事件
+	Sphere1->OnComponentBeginOverlap.AddDynamic(this, &AXXXX::XXXX)
+
+日志输出
+FString CombinedString = FString::Printf(TEXT("Hit at location:%s"),Hit.ImpactPoint);
+DrawDebugString(GetWorld(), Hit.ImpactPoint, CombinedString, nullptr, FColor::Green, 2.0f, true);

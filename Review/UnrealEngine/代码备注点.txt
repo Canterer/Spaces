@@ -1,0 +1,3 @@
+BlueprintImplementableEvent 函数名 默认为K2_Xxx   新增meta=(DisplayName="Xxxx",ScriptName="Xxxx")
+XXX_API void K2_Xxxx();
+

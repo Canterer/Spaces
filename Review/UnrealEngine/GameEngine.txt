@@ -1,0 +1,42 @@
+
+
+
+
+LaunchEngineLoop.cpp
+FEngineLoop::Init()
+	根据GIsEditor来实例化不同类作为GEngine对象
+	if(GIsEditor)
+		EngineClass = StaticLoadClass(UUnrealEdEngine::StaticClass(), nullptr, *ClassName);
+		GEngine=GEditor=GUnrealEd= NewObject<UUnrealEdEngine>(GetTransientPackage(),EngineClass);
+	else
+		EngineClass = StaticLoadClass(UGameEngine::StaticClass(), nullptr, *ClassName);
+		GEngine = NewObject<UEngine>(GetTransientPackage(), EngineClass);
+	
+	GEngin->ParseCommandline();
+	GEngine->Init(this);
+	GEngine->Start();
+
+FEngineLoop:Tick()
+	GEngine->Tick(FApp::GetDeltaTime(), bIdleMode);
+	GEngine->TickDeferredCommands();
+
+FEngineLoop::Exit()
+	if ( GEngine != nullptr )
+	{
+		GEngine->PreExit();
+	}
+
+
+
+
+
+UnrealEngine.cpp
+FWorldContext::SetCurrentWorld(UWorld* World)
+	OwningGameInstance->OnWorldChanged(OldWorld,ThisCurrentWorld);
+
+1
+1
+1
+1
+1
+1

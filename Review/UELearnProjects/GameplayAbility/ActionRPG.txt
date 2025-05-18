@@ -1,0 +1,19 @@
+WorldSettings里没有设置GameModeOverride  为None
+ProjectSettings=>Maps&Modes 指定DefaultGameMode为BP_GameMode
+
+BP_GameMode继承于C++类 RPGGameModeBase
+ARPGGameModeBase ：public AGameModeBase
+仅重写三个虚函数
+	virtual void ResetLevel() override;
+	virtual void HasMatchEnded() const override;返回是否调用过GameOver()
+	UFUNCTION(BlueprintCallable, Category=Game)
+	virtual void GameOver();
+
+为了重写HasMatchEnded 新增bGameOver变量
+protected:
+	UPROPERTY(BlueprintReadOnly, Category=Game)
+	uint32 bGameOver : 1;
+	UFUNCTION(BlueprintImplementableEvent, Category=Game)
+	void K2_DoRestart();
+	UFUNCTION(BlueprintImplementableEvent, Category=Game)
+	void K2_OnGameOver();	

@@ -29,3 +29,98 @@ AABB是一种计算机编程中的数据结构，代表轴对齐矩形框。它�
 TObjectPtr
 	FObjectHandle 懒加载
 	isValid 全局表验证
+
+FString、FName、FText、FGameplayTag
+
+TCHAR封装特殊字符类型 char 或 wchar_t 取决于编译器设置 Unicode对应wchar_t
+
+using AllocatorType = TSizedDefaultAllocator<32>;//32位即int32 为索引类型 超大数组换成64位
+TArray<TCHAR, AllocatorType> DataType;
+
+FName是静态字符串 实际上是一个索引编号，整个FName系统主要是通过哈希表实现的。
+
+FText字符串是一种静态字符串，
+	特点：处理文本本地化、较快的copy操作、提高文本渲染的性能。
+
+
+WIDECHAR* ANSICHAR* UTF8*CHAR
+
+
+网络同步
+	属性复制\RPC
+
+GAS框架
+	
+
+
+EnhancedInput
+	InputAction(IA)输入动作
+		ValueType： Digital(bool)、Axis1D(float)、Axis2D(Vecotr2D)、Axis3D(Vector)(运动传感器)
+		Triggers：例如蓄力
+		Modifiers：例如取反
+	InputMappingContext(IMC)输入映射上下文环境
+
+	InputModifiler(IM)输入修改器
+		Mapping.Modifiers/Triggers针对当前IMC场景
+		InputAction.Modifiers/Triggers针对全局
+		链式处理
+
+		类型：
+			DeadZone 限定值的访问
+			Scalar 缩放一个标量
+			Negate 取反
+			Smooth 多帧之间平衡
+			ToWorldSpace: 输入设置坐标系向世界坐标系转换(调换XYZ顺序)
+
+	InputTrigger
+		ETriggerEvent: ETriggerState变化时触发的事件
+		Down 值大于阈值(默认0.5)就触发
+		Pressed: 不激活到激活
+		Released： 激活到不激活
+		Hold: 按住大于某个时间
+		HoldAndRelease: 按住大于某个时间松开
+		Tap: 按下后快速抬起(默认0.2)
+		Chorded: 根据别的Action联动触发
+
+	IA事件： Triggered、Started、Ongoing、Canceled、Completed、ActionValue、InputAction
+
+	先声明IA  指定value类型 Trigged Modifier
+	声明IMC 绑定IA至具体的按键输入 每个按键可以指定Trigged、Modifier
+	GetPlayerController()->EnhancedInputLocalPlayerSubsystem->AddMappingContext
+
+
+
+	RootMotation根运动
+		通常Control控制角色移动(胶囊体),胶囊体上的动画根据速度等输出动作
+
+		根运动,由动画来控制角色的移动
+
+
+
+媒体播放：
+
+	MediaPlayer、FMediaPlayerFacade
+	针对不同平台的Seek定位不准
+	调整视频的关键帧 因为安卓的Java14里支持的seek两种接口
+	华为录屏的mp4文件无法播放等、
+	视频格式 版本 编码解码算法等
+
+
+	播放状态
+	EMediaState: Closed、Error、Paused、Playing、Preparing、Stopped
+	EMediaStatus: Buffering
+	Android平台的IsBuffering无法正确判断加载状态
+
+	通过动态材质实例 来控制多屏和画中画等实现。
+
+	音频数据的平衡音高处理 低频高频过滤等DSP处理算法
+	数字信号处理库 DSP
+
+	视频编码解码器 H.264/AVC  音频编解码器 AAC
+	实时流媒体HLS   支持不同比特率的媒体文件的变体流送
+	hls_segment_type   fmp4   后缀.m4s
+					   mpegts    后缀.ts
+
+
+	
+	对原视频进行编码处理、格式
